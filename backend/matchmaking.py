@@ -71,3 +71,28 @@ def sortear_duplas(jogadores: list, balanceado: bool = False):
             duplas_formadas.append((pote_bronze.pop(), pote_bronze.pop()))
                 
         return duplas_formadas
+
+def sortear_times(participantes: list, times_disponiveis: list) -> list:
+    """
+    Atribui aleatoriamente um time para cada participante (dupla ou jogador solo).
+    
+    :param participantes: Lista contendo as duplas e/ou jogadores solo (saída do sortear_duplas).
+    :param times_disponiveis: Lista de strings com os nomes dos times.
+    :return: Lista de dicionários vinculando o participante ao time sorteado.
+    """
+    # Fazemos uma cópia para não alterar a lista original e embaralhamos
+    times_embaralhados = times_disponiveis.copy()
+    random.shuffle(times_embaralhados)
+    
+    times_atribuidos = []
+
+    for participante in participantes:
+        # podemos usar o .pop() com segurança para garantir que nenhum time se repita.
+        time_sorteado = times_embaralhados.pop()
+        
+        times_atribuidos.append({
+            "participantes": participante,
+            "time": time_sorteado
+        })
+        
+    return times_atribuidos
