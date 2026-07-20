@@ -1,6 +1,6 @@
 # 🏆 FIFA (EA FC) Tournament Manager
 
-Um gerenciador de torneios web focado em campeonatos de FIFA. Projetado para ser rápido e sem atritos, o sistema não exige criação de contas: os torneios são gerados e acessados instantaneamente através de um ID único e senha, permitindo o gerenciamento de tabelas, chaveamentos e sorteios de forma ágil pelo navegador.
+Ao jogar com os amigos pensei em criar esse projeto: um gerenciador de torneios web focado em campeonatos de FIFA. Projetado para ser rápido e sem atritos, o sistema não exige criação de contas: os torneios são gerados e acessados instantaneamente através de um ID único e senha, permitindo o gerenciamento de tabelas, chaveamentos e sorteios de forma ágil pelo navegador.
 
 ## Funcionalidades e Fluxo de Uso
 
@@ -43,4 +43,4 @@ Para garantir a otimização do banco de dados, o sistema possui regras estritas
 - [ ] **Sprint 5 (Integração, Deploy e Limpeza):** Conexão das rotas, configuração da rotina de exclusão automática (Retenção de Dados) e deploy na nuvem.
 
 ---
-*Desenvolvido por Evandio Filho.*
+*Desenvolvido por Evandio de Souza Filho.*
