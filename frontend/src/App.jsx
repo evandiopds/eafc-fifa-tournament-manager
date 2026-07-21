@@ -1,11 +1,9 @@
-function App() {
-  return (
-    <div className="flex h-screen items-center justify-center bg-gray-100">
-      <h1 className="text-4xl font-bold text-blue-600">
-        Gerenciador de Torneios FIFA 🏆
-      </h1>
-    </div>
-  )
-}
+import Chaveamento from './components/Chaveamento';
 
-export default App
+export default function App() {
+  return (
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6">
+      <Chaveamento />
+    </div>
+  );
+}

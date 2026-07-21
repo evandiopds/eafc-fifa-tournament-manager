@@ -1,0 +1,68 @@
+{
+  "Brasileirão": [
+    { "nomeOficial": "Palmeiras", "sigla": "SEP", "apelidos": ["pal", "parmera", "porco"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/1/10/Palmeiras_logo.svg" },
+    { "nomeOficial": "Corinthians", "sigla": "SCCP", "apelidos": ["cor", "timao", "gavia", "coringao"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/b/b4/Corinthians_simbolo.png" },
+    { "nomeOficial": "Flamengo", "sigla": "CRF", "apelidos": ["fla", "mengo", "mengao", "rubro negro"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/2/2e/Flamengo_braz_logo.svg" },
+    { "nomeOficial": "Vasco da Gama", "sigla": "CRV", "apelidos": ["vas", "vascao", "cruzmaltino", "gigante"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/a/ac/CRVascodaGama.png" },
+    { "nomeOficial": "Atlético Mineiro", "sigla": "CAM", "apelidos": ["galo", "atletico mg", "mineiro"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/5/5f/Atletico_mineiro_galo.png" },
+    { "nomeOficial": "Cruzeiro", "sigla": "CEC", "apelidos": ["cru", "raposa", "cabuloso", "zeiro"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/9/90/Cruzeiro_Esporte_Clube_%28logo%29.svg" },
+    { "nomeOficial": "Bahia", "sigla": "ECB", "apelidos": ["bah", "tricolor de aco", "bahea"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/2/28/Esporte_Clube_Bahia_logo.png" },
+    { "nomeOficial": "Fluminense", "sigla": "FFC", "apelidos": ["flu", "fluzao", "nense", "tricolor"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/a/a3/Fluminense_FC_escudo.png" },
+    { "nomeOficial": "Santos", "sigla": "SFC", "apelidos": ["san", "peixe", "santastico"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/1/15/Santos_Logo.png" },
+    { "nomeOficial": "Botafogo", "sigla": "BFR", "apelidos": ["bot", "fogao", "estrela solitaria"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/c/c2/Botafogo_de_Futebol_e_Regatas_logo.svg" },
+    { "nomeOficial": "São Paulo", "sigla": "SPFC", "apelidos": ["sao", "tricolor paulista", "soberano"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/4/4b/S%C3%A3o_Paulo_Futebol_Clube.png" },
+    { "nomeOficial": "Grêmio", "sigla": "FBPA", "apelidos": ["gre", "imortal", "tricolor gaucho"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/4/42/Gremio_logo.svg" },
+    { "nomeOficial": "Internacional", "sigla": "SCI", "apelidos": ["int", "colorado", "inter"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/f/f1/Escudo_do_Sport_Club_Internacional.svg" }
+  ],
+  "La Liga": [
+    { "nomeOficial": "Real Madrid", "sigla": "RMA", "apelidos": ["real", "madrid", "merengues"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/9/98/Real_Madrid.png" },
+    { "nomeOficial": "Atlético de Madrid", "sigla": "ATM", "apelidos": ["atleti", "colchoneros"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/c/c1/Atletico_Madrid_logo.svg" },
+    { "nomeOficial": "Barcelona", "sigla": "BAR", "apelidos": ["barca", "fcb", "cules"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/4/43/FCBarcelona.svg" }
+  ],
+  "Premier League": [
+    { "nomeOficial": "Manchester City", "sigla": "MCI", "apelidos": ["city", "citizens"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/0/02/Manchester_City_Football_Club.png" },
+    { "nomeOficial": "Manchester United", "sigla": "MUN", "apelidos": ["united", "red devils", "man utd"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/4/43/ManchesterUnited.svg" },
+    { "nomeOficial": "Chelsea", "sigla": "CHE", "apelidos": ["blues"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/c/cc/Chelsea_FC.svg" },
+    { "nomeOficial": "Liverpool", "sigla": "LIV", "apelidos": ["reds", "lfc"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/0/0c/Liverpool_FC.svg" },
+    { "nomeOficial": "Arsenal", "sigla": "ARS", "apelidos": ["gunners"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/5/53/Arsenal_FC.svg" },
+    { "nomeOficial": "Tottenham Hotspur", "sigla": "TOT", "apelidos": ["spurs", "tottenham"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/b/b4/Tottenham_Hotspur.svg" },
+    { "nomeOficial": "Newcastle United", "sigla": "NEW", "apelidos": ["magpies", "newcastle"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/5/56/Newcastle_United_Logo.svg" },
+    { "nomeOficial": "Aston Villa", "sigla": "AST", "apelidos": ["villa", "villans"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/f/f9/Aston_Villa_FC_crest_%282016%29.svg" },
+    { "nomeOficial": "AFC Bournemouth", "sigla": "BOU", "apelidos": ["cherries", "bournemouth"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/e/e5/AFC_Bournemouth_%282013%29.svg" },
+    { "nomeOficial": "Brentford", "sigla": "BRE", "apelidos": ["bees"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/7/7b/Brentford_FC_logo.svg" }
+  ],
+  "Ligue 1": [
+    { "nomeOficial": "Paris Saint-Germain", "sigla": "PSG", "apelidos": ["paris", "saint germain"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/d/d4/Paris_Saint-Germain.svg" },
+    { "nomeOficial": "Monaco", "sigla": "ASM", "apelidos": ["as monaco"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/0/07/AS_Monaco_FC.svg" },
+    { "nomeOficial": "Lyon", "sigla": "OL", "apelidos": ["olympique lyonnais"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/e/e2/Olympique_Lyonnais.png" },
+    { "nomeOficial": "Olympique de Marseille", "sigla": "OM", "apelidos": ["marseille", "olympique"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/d/d8/Olympique_de_Marseille.svg" }
+  ],
+  "Bundesliga": [
+    { "nomeOficial": "Bayern München", "sigla": "BAY", "apelidos": ["bayern", "baviera", "munique"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_M%C3%BCnchen_logo_%282017%29.svg" },
+    { "nomeOficial": "Borussia Dortmund", "sigla": "BVB", "apelidos": ["borussia", "dortmund"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg" }
+  ],
+  "Serie A": [
+    { "nomeOficial": "Internazionale", "sigla": "INT", "apelidos": ["inter", "inter de milao", "nerazzurri"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/0/05/FC_Internazionale_Milano_2021.svg" },
+    { "nomeOficial": "Milan", "sigla": "MIL", "apelidos": ["ac milan", "rossoneri"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/d/d0/Logo_of_AC_Milan.svg" },
+    { "nomeOficial": "Juventus", "sigla": "JUV", "apelidos": ["juve", "velha senhora"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/b/bc/Juventus_FC_-_rect_logo_%28black_bg%29.svg" },
+    { "nomeOficial": "Napoli", "sigla": "NAP", "apelidos": ["ssc napoli"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/2/28/S.S.C._Napoli_logo.svg" },
+    { "nomeOficial": "Roma", "sigla": "ROM", "apelidos": ["as roma", "giallorossi"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/1/1a/AS_Roma_logo_2013.png" }
+  ],
+  "Seleções": [
+    { "nomeOficial": "Brasil", "sigla": "BRA", "apelidos": ["selecao", "canarinho"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/2/2b/Confedera%C3%A7%C3%A3o_Brasileira_de_Futebol_2019.svg" },
+    { "nomeOficial": "Argentina", "sigla": "ARG", "apelidos": ["albiceleste", "afa"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/6/6c/Asociaci%C3%B3n_del_F%C3%BAtbol_Argentino.png" },
+    { "nomeOficial": "Espanha", "sigla": "ESP", "apelidos": ["la roja", "furia"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/3/31/Spain_National_Football_Team_badge.png" },
+    { "nomeOficial": "Alemanha", "sigla": "GER", "apelidos": ["dfb", "die mannschaft", "alemanha"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/e/e3/DFB_Logo_1995.svg" },
+    { "nomeOficial": "Inglaterra", "sigla": "ENG", "apelidos": ["three lions", "inglaterra"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/7/77/Inglaterra_escudo.png" },
+    { "nomeOficial": "França", "sigla": "FRA", "apelidos": ["les bleus", "franca"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/7/75/Fran%C3%A7a_escudo_selecao.png" },
+    { "nomeOficial": "Itália", "sigla": "ITA", "apelidos": ["azzurri", "italia"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/4/47/FIGC_logo_2021.svg" },
+    { "nomeOficial": "Uruguai", "sigla": "URU", "apelidos": ["celeste", "auf"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/9/91/Escudo_de_la_Asociaci%C3%B3n_Uruguaya_de_F%C3%BAtbol.svg" },
+    { "nomeOficial": "Marrocos", "sigla": "MAR", "apelidos": ["leoes do atlas"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/2/23/Escudo_Sele%C3%A7%C3%A3o_Marroquina_de_Futebol.png" },
+    { "nomeOficial": "Portugal", "sigla": "POR", "apelidos": ["selecao das quinas", "fpf"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/0/0f/Portugal_escudo.png" },
+    { "nomeOficial": "Holanda", "sigla": "NED", "apelidos": ["netherlands", "laranja mecanica", "paises baixos"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/7/78/Pa%C3%ADses_Baixos_escudo.png" },
+    { "nomeOficial": "Bélgica", "sigla": "BEL", "apelidos": ["red devils", "belgica"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/3/36/Royal_Belgian_FA_logo_2019.png" },
+    { "nomeOficial": "Colômbia", "sigla": "COL", "apelidos": ["los cafeteros", "colombia"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/a/a2/Federacion_Colombiana_de_Futbol.png" },
+    { "nomeOficial": "Japão", "sigla": "JPN", "apelidos": ["samurais azuis", "japao", "jfa"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/d/d7/Japan_national_football_team_crest.png" },
+    { "nomeOficial": "Croácia", "sigla": "CRO", "apelidos": ["vatreni", "croacia", "hns"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/4/44/Croacia_escudo.png" }
+  ]
+}
