@@ -113,3 +113,47 @@ def gerar_mata_mata(times_sorteados: list) -> dict:
         "total_confrontos": total_jogos,
         "confrontos": confrontos
     }
+
+import math
+import random
+
+def gerar_fase_grupos(times_sorteados: list, times_por_grupo: int = 4) -> dict:
+    """
+    Divide a lista de participantes em grupos equilibrados para a fase inicial (Modo Copa).
+    
+    :param times_sorteados: Lista de dicionários com os times e participantes.
+    :param times_por_grupo: Quantidade base desejada de times por grupo (padrão é 4).
+    :return: Dicionário contendo os grupos e seus respectivos integrantes.
+    """
+    if not times_sorteados:
+        return {}
+
+    # Cópia de segurança para isolar os dados
+    times = times_sorteados.copy()
+    
+    # Sorteio cego imitando as "bolinhas" da UEFA/FIFA
+    random.shuffle(times)
+    
+    total_times = len(times)
+    # Calculando quantos grupos serão necessários (ex: 10 times / 4 = 2.5 -> arredonda para 3 grupos)
+    num_grupos = math.ceil(total_times / times_por_grupo)
+    
+    # Gerando as letras dos grupos usando a tabela ASCII (65 = 'A', 66 = 'B', etc.)
+    letras_grupos = [chr(i) for i in range(65, 65 + num_grupos)]
+    
+    # Inicializando o dicionário com os grupos vazios
+    fase_grupos = {letra: [] for letra in letras_grupos}
+    
+    # Distribuição equilibrada em formato de "Roleta" (um time em cada grupo por vez)
+    for index, time in enumerate(times):
+        letra_atual = letras_grupos[index % num_grupos]
+        fase_grupos[letra_atual].append({
+            "casa": time["time"], # Usamos a chave "casa" para manter um padrão visual, mas aqui é apenas o nome do time
+            "participantes": time.get("participantes")
+        })
+        
+    return {
+        "fase": "Fase de Grupos",
+        "total_grupos": num_grupos,
+        "grupos": fase_grupos
+    }
