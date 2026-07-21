@@ -13,15 +13,15 @@ Ao jogar com os amigos pensei em criar esse projeto: um gerenciador de torneios 
 
 *   **Back-End:** Python, FastAPI, Pydantic
 *   **Front-End:** Tailwind CSS, Vite, React.js
-*   **Banco de Dados:** PostgreSQL
+*   **Banco de Dados:** SQLite (Ambiente de Desenvolvimento), PostgreSQL (Ambiente de Produção), SQLAlchemy (ORM)
 
 ## Backlog do Projeto (Scrum Roadmap)
 
 - [x] **Sprint 1 (Base e Sorteios):** Estruturação do Back-End e criação do algoritmo de Sorteio (Raffle Engine) com as validações matemáticas de duplas.
-- [ ] **Sprint 2 (Motor de Torneios):** Lógica do algoritmo Round-Robin, geração de tabelas e chaveamento (Mata-Mata).
-- [ ] **Sprint 3 (Regras e Validações):** Implementação dos critérios de desempate e validação rígida de ID (Regex) e Senha para a criação dos torneios.
-- [ ] **Sprint 4 (Front-End & UI):** Construção da interface Web, incluindo o formulário dinâmico em JavaScript que alterna entre Solo e Dupla.
+- [x] **Sprint 2 (Motor de Torneios):** Lógica do algoritmo Round-Robin, geração de tabelas e chaveamento (Mata-Mata).
+- [x] **Sprint 3 (Regras e Validações):** Implementação dos critérios de desempate e validação rígida de ID (Regex) e Senha para a criação dos torneios.
+- [x] **Sprint 4 (Front-End & UI):** Construção da interface Web, incluindo o formulário dinâmico em JavaScript que alterna entre Solo e Dupla.
 - [ ] **Sprint 5 (Integração, Deploy e Limpeza):** Conexão das rotas, configuração da rotina de exclusão automática (Retenção de Dados) e deploy na nuvem.
-
+-  [ ] **Sprint 6 (Polimento e UI/UX):** Elevar a qualidade da interface gráfica e implementar regras avançadas de renderização. 
 ---
 *Desenvolvido por Evandio de Souza Filho.*
