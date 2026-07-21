@@ -61,3 +61,55 @@ def gerar_pontos_corridos(times_sorteados: list, turno_duplo: bool = False) -> d
         tabela.update(tabela_retorno)
 
     return tabela
+
+import random
+
+def gerar_mata_mata(times_sorteados: list) -> dict:
+    """
+    Gera os confrontos iniciais eliminatórios (Mata-Mata) de forma randômica.
+    
+    :param times_sorteados: Lista de dicionários com os times e participantes.
+    :return: Dicionário contendo os confrontos da fase atual.
+    """
+    if not times_sorteados:
+        return {}
+
+    # Fazemos uma cópia para não alterar a lista original do back-end
+    times = times_sorteados.copy()
+    
+    # Tratamento para ímpares no Mata-Mata: O adversário invisível vira um Avanço Direto
+    if len(times) % 2 != 0:
+        times.append({"participantes": None, "time": "Avanço Direto (Bye)"})
+
+    # Sorteio cego
+    random.shuffle(times)
+    
+    confrontos = []
+    
+    # Iteramos a lista pulando de 2 em 2 para formar os pares
+    for i in range(0, len(times), 2):
+        casa = times[i]
+        visitante = times[i+1]
+        
+        confrontos.append({
+            "casa": casa["time"],
+            "visitante": visitante["time"]
+        })
+        
+    # Calculando dinamicamente o nome da fase baseada no número de jogos
+    total_jogos = len(confrontos)
+    nome_fase = "Final"
+    if total_jogos == 2:
+        nome_fase = "Semifinal"
+    elif total_jogos == 4:
+        nome_fase = "Quartas de Final"
+    elif total_jogos == 8:
+        nome_fase = "Oitavas de Final"
+    elif total_jogos > 8:
+        nome_fase = f"Fase de {total_jogos * 2} Avos"
+
+    return {
+        "fase": nome_fase,
+        "total_confrontos": total_jogos,
+        "confrontos": confrontos
+    }
