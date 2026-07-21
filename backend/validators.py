@@ -47,3 +47,21 @@ def validar_id_torneio(id_torneio: str) -> dict:
         "valido": True,
         "mensagem": "ID formatado corretamente."
     }
+
+def validar_senha_torneio(senha: str) -> dict:
+    """
+    Valida se a senha atende aos requisitos mínimos de segurança.
+    
+    :param senha: A string da senha enviada pelo usuário.
+    :return: Dicionário com o status de validação e a mensagem.
+    """
+    if not senha or len(senha) < 6:
+        return {
+            "valido": False,
+            "mensagem": "A senha deve conter no mínimo 6 caracteres."
+        }
+        
+    return {
+        "valido": True,
+        "mensagem": "Senha validada com sucesso."
+    }

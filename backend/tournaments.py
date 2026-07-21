@@ -1,3 +1,6 @@
+import random
+import math
+
 def gerar_pontos_corridos(times_sorteados: list, turno_duplo: bool = False) -> dict:
     """
     Gera as rodadas de um torneio de pontos corridos usando o Algoritmo do Círculo.
@@ -62,7 +65,6 @@ def gerar_pontos_corridos(times_sorteados: list, turno_duplo: bool = False) -> d
 
     return tabela
 
-import random
 
 def gerar_mata_mata(times_sorteados: list) -> dict:
     """
@@ -114,8 +116,6 @@ def gerar_mata_mata(times_sorteados: list) -> dict:
         "confrontos": confrontos
     }
 
-import math
-import random
 
 def gerar_fase_grupos(times_sorteados: list, times_por_grupo: int = 4) -> dict:
     """
