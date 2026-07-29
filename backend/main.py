@@ -5,12 +5,47 @@ from pydantic import BaseModel
 from typing import List
 import uuid
 
+import asyncio
+from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
+
 from matchmaking import sortear_duplas, sortear_times
 from validators import validar_quantidade_times
 
 import database
 
-app = FastAPI(title="EAFC Tournament Manager API")
+async def rotina_limpeza_banco():
+    while True:
+        db = database.SessionLocal()
+        try:
+            print("🧹 [Garbage Collector] Verificando torneios inativos...")
+            data_limite = datetime.utcnow() - timedelta(days=30)
+            
+            torneios_vencidos = db.query(database.Torneio).filter(database.Torneio.ultimo_acesso < data_limite).all()
+            
+            if torneios_vencidos:
+                for torneio in torneios_vencidos:
+                    db.delete(torneio)
+                db.commit()
+                print(f"🗑️ [Garbage Collector] {len(torneios_vencidos)} torneio(s) excluído(s).")
+            else:
+                print("✨ [Garbage Collector] Nenhum torneio inativo encontrado. Tudo limpo!")
+                
+        except Exception as e:
+            print(f"Erro na rotina de limpeza: {e}")
+        finally:
+            db.close()
+            
+        await asyncio.sleep(864000) 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    task = asyncio.create_task(rotina_limpeza_banco())
+    yield
+    task.cancel()
+
+
+app = FastAPI(title="EAFC Tournament Manager API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,7 +55,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Dependência para conectar nas tabelas do SQLite/PostgreSQL
 def get_db():
     db = database.SessionLocal()
     try:
@@ -29,7 +63,6 @@ def get_db():
         db.close()
 
 
-# MODELOS DE DADOS (Pydantic)
 class Jogador(BaseModel):
     nome: str
     nivel: str 
@@ -45,14 +78,8 @@ class TorneioCreate(BaseModel):
     senha: str
 
 
-
-# ROTAS DA API (Endpoints)
 @app.post("/api/sorteio/duplas")
 def realizar_sorteio_duplas(payload: SorteioRequest):
-    """
-    Recebe a lista de jogadores e times, valida as regras matemáticas,
-    forma as duplas balanceadas e atribui os times aleatoriamente.
-    """
     lista_jogadores = [{"nome": j.nome, "nivel": j.nivel} for j in payload.jogadores]
     
     validacao = validar_quantidade_times(len(lista_jogadores), len(payload.times), formato="dupla")
