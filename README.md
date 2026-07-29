@@ -21,7 +21,7 @@ Ao jogar com os amigos pensei em criar esse projeto: um gerenciador de torneios 
 - [x] **Sprint 2 (Motor de Torneios):** Lógica do algoritmo Round-Robin, geração de tabelas e chaveamento (Mata-Mata).
 - [x] **Sprint 3 (Regras e Validações):** Implementação dos critérios de desempate e validação rígida de ID (Regex) e Senha para a criação dos torneios.
 - [x] **Sprint 4 (Front-End & UI):** Construção da interface Web, incluindo o formulário dinâmico em JavaScript que alterna entre Solo e Dupla.
-- [ ] **Sprint 5 (Integração, Deploy e Limpeza):** Conexão das rotas, configuração da rotina de exclusão automática (Retenção de Dados) e deploy na nuvem.
+- [x] **Sprint 5 (Integração, Deploy e Limpeza):** Conexão das rotas, configuração da rotina de exclusão automática (Retenção de Dados) e deploy na nuvem.
 -  [ ] **Sprint 6 (Polimento e UI/UX):** Elevar a qualidade da interface gráfica e implementar regras avançadas de renderização. 
 ---
 *Desenvolvido por Evandio de Souza Filho.*
