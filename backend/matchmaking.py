@@ -30,36 +30,30 @@ def sortear_duplas(jogadores: list, balanceado: bool = False):
         
         # Regra do Ímpar
         if len(lista_jogadores) % 2 != 0:
-            # 1ª Opção: Prioriza Prata jogando sozinho
             if pote_prata:
                 jogador_solo = pote_prata.pop()
-            # Exceção: Se número de Ouros supera Bronzes, o Ouro joga solo para evitar Ouro+Ouro
             elif len(pote_ouro) > len(pote_bronze) and pote_ouro:
                 jogador_solo = pote_ouro.pop()
-            # 2ª Opção: Bronze joga solo
             elif pote_bronze:
                 jogador_solo = pote_bronze.pop()
-            # Fallback extremo de segurança
             else:
                 jogador_solo = pote_ouro.pop()
                 
             duplas_formadas.append((jogador_solo, "Sem Dupla (Solo)"))
         
-        # Balanceamento de Duplas
-        
         # Prioridade I: Ouro + Bronze
         while pote_ouro and pote_bronze:
             duplas_formadas.append((pote_ouro.pop(), pote_bronze.pop()))
             
-        # Prioridade Extra/Secundária: Ouro + Prata (Se sobraram Ouros sem Bronzes)
+        # Prioridade Extra/Secundária: Ouro + Prata
         while pote_ouro and pote_prata:
             duplas_formadas.append((pote_ouro.pop(), pote_prata.pop()))
             
-        # Prioridade III: Prata + Bronze (Se sobraram Bronzes sem Ouros)
+        # Prioridade III: Prata + Bronze
         while pote_prata and pote_bronze:
             duplas_formadas.append((pote_prata.pop(), pote_bronze.pop()))
             
-        # Prioridade II: Prata + Prata (Com os Pratas que restaram)
+        # Prioridade II: Prata + Prata
         while len(pote_prata) >= 2:
             duplas_formadas.append((pote_prata.pop(), pote_prata.pop()))
             
@@ -76,10 +70,6 @@ def sortear_duplas(jogadores: list, balanceado: bool = False):
 def sortear_times(participantes: list, times_disponiveis: list) -> list:
     """
     Atribui aleatoriamente um time para cada participante (dupla ou jogador solo).
-    
-    :param participantes: Lista contendo as duplas e/ou jogadores solo (saída do sortear_duplas).
-    :param times_disponiveis: Lista de strings com os nomes dos times.
-    :return: Lista de dicionários vinculando o participante ao time sorteado.
     """
     times_embaralhados = times_disponiveis.copy()
     random.shuffle(times_embaralhados)
@@ -151,21 +141,54 @@ def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida
         }
 
     elif formato == "mata_mata":
+        # 1. Encontra a próxima potência de 2 >= total (2, 4, 8, 16, 32...)
+        potencia = 1
+        while potencia < total:
+            potencia *= 2
+            
+        num_byes = potencia - total
+        
+        # Nomes descritivos para a fase com base no tamanho do chaveamento
+        fases_nomes = {
+            2: "Final",
+            4: "Semifinal",
+            8: "Quartas de Final",
+            16: "Oitavas de Final",
+            32: "16avos de Final"
+        }
+        fase_nome = fases_nomes.get(potencia, "Eliminatória")
+        
         confrontos = []
-        for i in range(0, total - 1, 2):
+        
+        # 2. Cria os confrontos de "Bye" (avanço direto) para os primeiros num_byes times
+        for i in range(num_byes):
             confrontos.append({
-                "fase": "Eliminatória",
+                "fase": fase_nome,
                 "casa": lista[i],
-                "fora": lista[i+1]
-            })
-        if total % 2 != 0:
-            confrontos.append({
-                "fase": "Eliminatória",
-                "casa": lista[-1],
                 "fora": "AVANÇA DIRETO (Bye)"
             })
+            
+        # 3. Cria os confrontos reais entre os times restantes
+        for i in range(num_byes, total, 2):
+            if i + 1 < total:
+                confrontos.append({
+                    "fase": fase_nome,
+                    "casa": lista[i],
+                    "fora": lista[i+1]
+                })
+            else:
+                confrontos.append({
+                    "fase": fase_nome,
+                    "casa": lista[i],
+                    "fora": "AVANÇA DIRETO (Bye)"
+                })
+                
         return {
             "formato": "mata_mata",
+            "fase": fase_nome,
+            "total_participantes": total,
+            "tamanho_chave": potencia,
+            "byes": num_byes,
             "partidas_iniciais": confrontos
         }
 

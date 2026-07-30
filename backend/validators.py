@@ -1,21 +1,20 @@
 import math
 import re
 
-def validar_quantidade_times(num_jogadores: int, num_times: int, formato: str = "dupla") -> dict:
+def validar_quantidade_times(num_jogadores: int, num_times: int, formato: str = "duplas", formato_torneio: str = "mata_mata") -> dict:
     """
     Valida matematicamente se a quantidade de times inscritos é suficiente.
-    
-    :param num_jogadores: Total de jogadores inscritos.
-    :param num_times: Total de times fornecidos na lista.
-    :param formato: "solo" ou "dupla".
-    :return: Dicionário com o status da validação e uma mensagem de erro caso falhe.
+    Permite qualquer número >= 2, deixando o ajuste de chaves ímpares/não-potências para os Byes.
     """
-    
-    if formato == "solo":
-        # No modo solo, a proporção é 1:1
+    if num_jogadores < 2:
+        return {
+            "valido": False,
+            "mensagem": "O torneio precisa de pelo menos 2 jogadores para acontecer!"
+        }
+
+    if formato in ["solo", "1v1"]:
         times_necessarios = num_jogadores
     else:
-        # No modo dupla, a proporção é 2:1
         times_necessarios = math.ceil(num_jogadores / 2)
         
     if num_times >= times_necessarios:
@@ -30,11 +29,7 @@ def validar_quantidade_times(num_jogadores: int, num_times: int, formato: str = 
 def validar_id_torneio(id_torneio: str) -> dict:
     """
     Valida o formato do ID do torneio usando Expressões Regulares (Regex).
-    
-    :param id_torneio: A string do ID enviada pelo usuário.
-    :return: Dicionário com o status de validação e a mensagem de erro/sucesso.
     """
-    # Regra: Inicia e termina com letras (maiúsculas/minúsculas), números ou hífens. Tamanho entre 4 e 20.
     padrao_seguro = r"^[a-zA-Z0-9-]{4,20}$"
     
     if not re.match(padrao_seguro, id_torneio):
@@ -51,9 +46,6 @@ def validar_id_torneio(id_torneio: str) -> dict:
 def validar_senha_torneio(senha: str) -> dict:
     """
     Valida se a senha atende aos requisitos mínimos de segurança.
-    
-    :param senha: A string da senha enviada pelo usuário.
-    :return: Dicionário com o status de validação e a mensagem.
     """
     if not senha or len(senha) < 6:
         return {

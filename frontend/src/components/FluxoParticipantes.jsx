@@ -83,6 +83,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
 
       if (modoEntrada === 'aleatorio') {
         payload = {
+          torneio_id: torneio?.id,
           jogadores: jogadores,
           times: times,
           modo: modoJogo,

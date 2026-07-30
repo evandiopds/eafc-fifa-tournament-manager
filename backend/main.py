@@ -14,6 +14,8 @@ from validators import validar_quantidade_times
 
 import database
 
+from standings import calcular_tabela_classificacao, avancar_vencedor_mata_mata
+
 from typing import Optional
 
 async def rotina_limpeza_banco():
@@ -70,6 +72,7 @@ class Jogador(BaseModel):
     nivel: str 
 
 class SorteioRequest(BaseModel):
+    torneio_id: Optional[str] = None
     jogadores: List[Jogador]
     times: List[str]
     modo: str = "duplas"           
@@ -86,11 +89,24 @@ class TorneioAcesso(BaseModel):
     senha: str
 
 
+def obter_nome_time(item):
+    """Extrai o nome do time com segurança, seja ele dict, string ou None."""
+    if not item:
+        return None
+    if isinstance(item, str):
+        return item
+    if isinstance(item, dict):
+        return item.get("time")
+    return None
+
+
 @app.post("/api/sorteio/gerar")
-def realizar_sorteio_geral(payload: SorteioRequest):
+def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db)):
     lista_jogadores = [{"nome": j.nome, "nivel": j.nivel} for j in payload.jogadores]
     
-    validacao = validar_quantidade_times(len(lista_jogadores), len(payload.times), formato=payload.modo)
+    validacao = validar_quantidade_times(
+        len(lista_jogadores), len(payload.times), formato=payload.modo, formato_torneio=payload.formato_torneio
+    )
     if not validacao["valido"]:
         raise HTTPException(status_code=400, detail=validacao["mensagem"])
         
@@ -100,9 +116,56 @@ def realizar_sorteio_geral(payload: SorteioRequest):
         participantes = sortear_duplas(lista_jogadores, balanceado=payload.balanceado)
         
     participantes_com_times = sortear_times(participantes, payload.times)
-    
     chaveamento = gerar_chaveamento_aleatorio(participantes_com_times, payload.formato_torneio)
-    
+
+    if payload.torneio_id:
+        db.query(database.Partida).filter(database.Partida.torneio_id == payload.torneio_id).delete()
+        db.query(database.Participante).filter(database.Participante.torneio_id == payload.torneio_id).delete()
+        db.commit()
+
+        mapa_participantes = {}
+        for item in participantes_com_times:
+            nome_jogador = (
+                item["participantes"] 
+                if isinstance(item["participantes"], str) 
+                else " & ".join([p["nome"] for p in item["participantes"]])
+            )
+            
+            novo_part = database.Participante(
+                torneio_id=payload.torneio_id,
+                nome_clube=item["time"],
+                jogador=nome_jogador,
+                sigla=item["time"][:3].upper()
+            )
+            db.add(novo_part)
+            db.commit()
+            db.refresh(novo_part)
+            
+            # Guarda o ID real do banco usando o nome do time como chave
+            mapa_participantes[item["time"]] = novo_part.id
+
+        confrontos = (
+            chaveamento.get("partidas_iniciais") or 
+            chaveamento.get("confrontos") or 
+            []
+        )
+        fase_nome = chaveamento.get("fase", "Fase Inicial")
+
+        for jogo in confrontos:
+            nome_casa = obter_nome_time(jogo.get("casa"))
+            nome_fora = obter_nome_time(jogo.get("fora") or jogo.get("visitante"))
+
+            nova_partida = database.Partida(
+                torneio_id=payload.torneio_id,
+                fase=fase_nome,
+                time_casa_id=mapa_participantes.get(nome_casa),
+                time_fora_id=mapa_participantes.get(nome_fora),
+                status="pendente"
+            )
+            db.add(nova_partida)
+        
+        db.commit()
+
     return {
         "status": "sucesso",
         "modo": payload.modo,
@@ -162,56 +225,70 @@ def acessar_torneio(payload: TorneioAcesso, db: Session = Depends(get_db)):
         }
     }
 
+from standings import calcular_tabela_classificacao, avancar_vencedor_mata_mata
+
 class PlacarRequest(BaseModel):
-    torneio_id: Optional[str] = None
+    torneio_id: str
     formato_torneio: str
     rodada_ou_fase: str
     index_partida: int
+    partida_id: Optional[int] = None  
     gols_casa: int
     gols_visitante: int
     penaltis_casa: Optional[int] = None
     penaltis_visitante: Optional[int] = None
 
 @app.post("/api/torneios/placar")
-def registrar_placar_partida(payload: PlacarRequest):
+def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_db)):
     """
-    Valida e registra o placar de um jogo.
-    No mata-mata, se houver empate nos 90 minutos, exige desempate por pênaltis.
+    Valida e persiste o placar de um jogo no banco SQLite (banco.db).
+    Aplica critérios de desempate ou avança o vencedor no Mata-Mata.
     """
     if payload.gols_casa < 0 or payload.gols_visitante < 0:
         raise HTTPException(status_code=400, detail="Gols não podem ser negativos.")
 
-    # Regra de Pênaltis no Mata-Mata
+    # Validação de pênaltis para jogos eliminatórios empatados
     if payload.formato_torneio == "mata_mata" and payload.gols_casa == payload.gols_visitante:
         if payload.penaltis_casa is None or payload.penaltis_visitante is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Jogos eliminatórios empatados precisam de decisão por pênaltis!"
-            )
+            raise HTTPException(status_code=400, detail="Empates em mata-mata exigem decisão por pênaltis!")
         if payload.penaltis_casa == payload.penaltis_visitante:
-            raise HTTPException(
-                status_code=400,
-                detail="A disputa de pênaltis não pode terminar empatada!"
-            )
+            raise HTTPException(status_code=400, detail="A disputa de pênaltis não pode terminar empatada!")
 
-    vencedor = None
-    if payload.gols_casa > payload.gols_visitante:
-        vencedor = "casa"
-    elif payload.gols_visitante > payload.gols_casa:
-        vencedor = "visitante"
-    elif payload.formato_torneio == "mata_mata":
-        vencedor = "casa" if (payload.penaltis_casa or 0) > (payload.penaltis_visitante or 0) else "visitante"
+    # 1. PERSISTÊNCIA NO BANCO DE DADOS (database.Partida)
+    partida = None
+    if payload.partida_id:
+        partida = db.query(database.Partida).filter(database.Partida.id == payload.partida_id).first()
     else:
-        vencedor = "empate"
+        # Busca por torneio e offset caso não envie o ID explícito
+        partidas_fase = db.query(database.Partida).filter(
+            database.Partida.torneio_id == payload.torneio_id,
+            database.Partida.fase == payload.rodada_ou_fase
+        ).all()
+        if len(partidas_fase) > payload.index_partida:
+            partida = partidas_fase[payload.index_partida]
+
+    msg_avanco = None
+    if partida:
+        partida.gols_casa = payload.gols_casa
+        partida.gols_fora = payload.gols_visitante
+        partida.penaltis_casa = payload.penaltis_casa
+        partida.penaltis_fora = payload.penaltis_visitante
+        partida.status = "finalizada"
+        db.commit()
+        db.refresh(partida)
+
+        # 2. AVANÇO AUTOMÁTICO PARA MATA-MATA
+        if payload.formato_torneio == "mata_mata":
+            msg_avanco = avancar_vencedor_mata_mata(db, partida)
+
+    # 3. RETORNA CLASSIFICAÇÃO ATUALIZADA (com critérios de desempate)
+    tabela_atualizada = []
+    if payload.formato_torneio in ["pontos_corridos", "copa"]:
+        tabela_atualizada = calcular_tabela_classificacao(db, payload.torneio_id)
 
     return {
         "status": "sucesso",
-        "mensagem": "Placar registrado corretamente!",
-        "placar": {
-            "gols_casa": payload.gols_casa,
-            "gols_visitante": payload.gols_visitante,
-            "penaltis_casa": payload.penaltis_casa,
-            "penaltis_visitante": payload.penaltis_visitante,
-            "vencedor": vencedor
-        }
+        "mensagem": "Placar persistido corretamente no banco de dados!",
+        "avanco_mata_mata": msg_avanco,
+        "classificacao": tabela_atualizada
     }
