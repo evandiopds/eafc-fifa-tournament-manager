@@ -2,15 +2,16 @@ import { useState } from 'react';
 import axios from 'axios';
 import { buscarTime } from '../utils/teamSearch';
 import escudoGen from '../assets/escudo_gen.svg';
+import escudoOff from '../assets/escudo_off.svg';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
-// Busca escudo oficial ou genérico
 function getEscudo(nomeTime) {
-  if (!nomeTime) return escudoGen;
+  if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') {
+    return escudoOff || escudoGen;
+  }
 
   const timeEncontrado = buscarTime(nomeTime);
-  
   if (!timeEncontrado || timeEncontrado.escudo === '/escudo-padrao.png') {
     return escudoGen;
   }
@@ -18,7 +19,7 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
-// Card interativo da partida
+// Card individual da partida na Árvore
 function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
@@ -27,19 +28,27 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
   const [statusMsg, setStatusMsg] = useState(null);
   const [carregando, setCarregando] = useState(false);
 
-  // Filtro que impede digitação de qualquer coisa que não seja número (0-9)
+  const nomeCasa = typeof jogo.casa === 'string' ? jogo.casa : jogo.casa?.time || jogo.time || 'Aguardando';
+  const nomeFora = typeof jogo.fora === 'string' ? jogo.fora : jogo.fora?.time || jogo.visitante?.time || 'Aguardando';
+
+  // Identifica se a partida ainda está esperando a definição de adversários
+  const isAguardando = nomeCasa === 'Aguardando' || nomeFora === 'Aguardando';
+
   const handleNumeroChange = (setter, valor) => {
     const apenasNumeros = valor.replace(/\D/g, '');
     setter(apenasNumeros);
   };
 
   const empatadoNoMataMata =
+    !isAguardando &&
     formato === 'mata_mata' &&
     golsCasa !== '' &&
     golsVisitante !== '' &&
     Number(golsCasa) === Number(golsVisitante);
 
   const handleSalvarPlacar = async () => {
+    if (isAguardando) return;
+
     if (golsCasa === '' || golsVisitante === '') {
       setStatusMsg({ erro: true, texto: 'Preencha o placar!' });
       return;
@@ -48,7 +57,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
     const finalGolsCasa = Number(golsCasa);
     const finalGolsVisitante = Number(golsVisitante);
 
-    // 2. SEGUNDO: Só verifica pênaltis se os gols foram preenchidos intencionalmente E empataram
     if (formato === 'mata_mata' && finalGolsCasa === finalGolsVisitante) {
       if (penCasa === '' || penVisitante === '') {
         setStatusMsg({ erro: true, texto: 'Empate exige pênaltis!' });
@@ -81,9 +89,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
     }
   };
 
-  const nomeCasa = typeof jogo.casa === 'string' ? jogo.casa : jogo.casa?.time || jogo.time || 'Casa';
-  const nomeFora = typeof jogo.fora === 'string' ? jogo.fora : jogo.fora?.time || jogo.visitante?.time || 'Visitante';
-
   const partCasa =
     typeof jogo.casa !== 'string' && jogo.casa?.participantes
       ? typeof jogo.casa.participantes === 'string'
@@ -99,98 +104,109 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
       : null;
 
   return (
-    <div className="bg-slate-800/90 border border-slate-700 rounded-xl p-4 flex flex-col gap-3 shadow-md transition-transform hover:scale-[1.005]">
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        {/* Mandante com escudo */}
-        <div className="flex items-center gap-3 w-full sm:w-2/5 justify-start sm:justify-end">
-          <div className="text-left sm:text-right">
-            <p className="text-base font-extrabold text-white">{nomeCasa}</p>
-            {partCasa && <p className="text-xs text-emerald-400 font-semibold">{partCasa}</p>}
-          </div>
+    <div
+      className={`w-72 bg-slate-800/90 border rounded-xl p-3 flex flex-col gap-2 shadow-md transition-all ${
+        isAguardando ? 'border-slate-700/50 bg-slate-900/40 opacity-75' : 'border-slate-700 hover:border-slate-500'
+      }`}
+    >
+      {/* Mandante */}
+      <div className="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2">
+        <div className="flex items-center gap-2.5 overflow-hidden">
           <img
             src={getEscudo(nomeCasa)}
             alt={nomeCasa}
-            onError={(e) => { e.target.src = escudoGen; }}
-            className="w-10 h-10 object-contain shrink-0"
+            onError={(e) => {
+              e.target.src = isAguardando ? escudoOff : escudoGen;
+            }}
+            className="w-7 h-7 object-contain shrink-0"
           />
+          <div className="truncate">
+            <p className={`text-sm font-bold truncate ${nomeCasa === 'Aguardando' ? 'text-slate-500 italic' : 'text-white'}`}>
+              {nomeCasa}
+            </p>
+            {partCasa && <p className="text-[10px] text-emerald-400 font-semibold truncate">{partCasa}</p>}
+          </div>
         </div>
 
-        {/* Inputs de placar (totalmente limpos e vazios quando não preenchidos) */}
-        <div className="flex items-center gap-2 bg-slate-900/80 border border-slate-700 py-2 px-4 rounded-xl shrink-0">
-          <input
-            type="text"
-            inputMode="numeric"
-            value={golsCasa}
-            onChange={(e) => handleNumeroChange(setGolsCasa, e.target.value)}
-            placeholder=""
-            className="w-12 text-center bg-slate-800 border border-slate-600 rounded-lg py-1 text-lg font-black text-white focus:outline-none focus:border-emerald-500"
-          />
-          <span className="text-slate-500 font-bold">×</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={golsVisitante}
-            onChange={(e) => handleNumeroChange(setGolsVisitante, e.target.value)}
-            placeholder=""
-            className="w-12 text-center bg-slate-800 border border-slate-600 rounded-lg py-1 text-lg font-black text-white focus:outline-none focus:border-emerald-500"
-          />
-          <button
-            onClick={handleSalvarPlacar}
-            disabled={carregando}
-            className="ml-2 bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-3 py-1.5 rounded-lg text-xs font-black uppercase transition-all shadow-sm"
-          >
-            {carregando ? '...' : '✓'}
-          </button>
-        </div>
+        <input
+          type="text"
+          inputMode="numeric"
+          disabled={isAguardando}
+          value={golsCasa}
+          onChange={(e) => handleNumeroChange(setGolsCasa, e.target.value)}
+          placeholder="-"
+          className="w-9 text-center bg-slate-900 border border-slate-700 rounded py-0.5 text-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30"
+        />
+      </div>
 
-        {/* Visitante com escudo */}
-        <div className="flex items-center gap-3 w-full sm:w-2/5 justify-start">
+      {/* Visitante */}
+      <div className="flex items-center justify-between gap-2 pt-0.5">
+        <div className="flex items-center gap-2.5 overflow-hidden">
           <img
             src={getEscudo(nomeFora)}
             alt={nomeFora}
-            onError={(e) => { e.target.src = escudoGen; }}
-            className="w-10 h-10 object-contain shrink-0"
+            onError={(e) => {
+              e.target.src = isAguardando ? escudoOff : escudoGen;
+            }}
+            className="w-7 h-7 object-contain shrink-0"
           />
-          <div className="text-left">
-            <p className="text-base font-extrabold text-white">{nomeFora}</p>
-            {partFora && <p className="text-xs text-emerald-400 font-semibold">{partFora}</p>}
+          <div className="truncate">
+            <p className={`text-sm font-bold truncate ${nomeFora === 'Aguardando' ? 'text-slate-500 italic' : 'text-white'}`}>
+              {nomeFora}
+            </p>
+            {partFora && <p className="text-[10px] text-emerald-400 font-semibold truncate">{partFora}</p>}
           </div>
         </div>
+
+        <input
+          type="text"
+          inputMode="numeric"
+          disabled={isAguardando}
+          value={golsVisitante}
+          onChange={(e) => handleNumeroChange(setGolsVisitante, e.target.value)}
+          placeholder="-"
+          className="w-9 text-center bg-slate-900 border border-slate-700 rounded py-0.5 text-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30"
+        />
       </div>
 
-      {/* Painel condicional de pênaltis */}
-      {empatadoNoMataMata && (
-        <div className="flex items-center justify-center gap-3 bg-slate-900/90 border border-emerald-500/40 p-2 rounded-lg mt-1">
-          <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
-            Pênaltis:
-          </span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={penCasa}
-            onChange={(e) => handleNumeroChange(setPenCasa, e.target.value)}
-            placeholder=""
-            className="w-10 text-center bg-slate-800 border border-slate-600 rounded text-sm font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
-          />
-          <span className="text-slate-500 text-xs">×</span>
-          <input
-            type="text"
-            inputMode="numeric"
-            value={penVisitante}
-            onChange={(e) => handleNumeroChange(setPenVisitante, e.target.value)}
-            placeholder=""
-            className="w-10 text-center bg-slate-800 border border-slate-600 rounded text-sm font-bold text-emerald-400 focus:outline-none focus:border-emerald-500"
-          />
+      {/* Botão de salvar placar condicional */}
+      {!isAguardando && (
+        <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-700/40">
+          {empatadoNoMataMata ? (
+            <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
+              <span>Pênaltis:</span>
+              <input
+                type="text"
+                value={penCasa}
+                onChange={(e) => handleNumeroChange(setPenCasa, e.target.value)}
+                className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
+              />
+              <span>×</span>
+              <input
+                type="text"
+                value={penVisitante}
+                onChange={(e) => handleNumeroChange(setPenVisitante, e.target.value)}
+                className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
+              />
+            </div>
+          ) : (
+            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
+              Placar Oficial
+            </span>
+          )}
+
+          <button
+            onClick={handleSalvarPlacar}
+            disabled={carregando}
+            className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-3 py-1 rounded text-[11px] font-black uppercase transition-all shadow-sm ml-auto"
+          >
+            {carregando ? '...' : 'Salvar ✓'}
+          </button>
         </div>
       )}
 
-      {/* Feedback de salvamento */}
       {statusMsg && (
-        <p
-          className={`text-center text-xs font-semibold ${
-            statusMsg.erro ? 'text-rose-400' : 'text-emerald-400'
-          }`}
-        >
+        <p className={`text-center text-[11px] font-semibold ${statusMsg.erro ? 'text-rose-400' : 'text-emerald-400'}`}>
           {statusMsg.texto}
         </p>
       )}
@@ -226,24 +242,13 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {nomesGrupos.map((nomeGrupo) => (
-            <div
-              key={nomeGrupo}
-              className="bg-slate-800/90 border border-slate-700 rounded-xl overflow-hidden shadow-xl"
-            >
+            <div key={nomeGrupo} className="bg-slate-800/90 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
               <div className="bg-slate-900/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
-                <h4 className="font-extrabold text-emerald-400 uppercase tracking-wider text-sm">
-                  {nomeGrupo}
-                </h4>
+                <h4 className="font-extrabold text-emerald-400 uppercase tracking-wider text-sm">{nomeGrupo}</h4>
               </div>
               <div className="p-4 space-y-3">
                 {grupos[nomeGrupo].map((item, idx) => (
-                  <CardPartida
-                    key={idx}
-                    idx={idx}
-                    jogo={item}
-                    formato={formato_torneio}
-                    rodadaOuFase={nomeGrupo}
-                  />
+                  <CardPartida key={idx} idx={idx} jogo={item} formato={formato_torneio} rodadaOuFase={nomeGrupo} />
                 ))}
               </div>
             </div>
@@ -284,13 +289,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
 
         <div className="space-y-3">
           {jogosRodada.map((jogo, idx) => (
-            <CardPartida
-              key={idx}
-              idx={idx}
-              jogo={jogo}
-              formato={formato_torneio}
-              rodadaOuFase={`Rodada ${jogo.rodada}`}
-            />
+            <CardPartida key={idx} idx={idx} jogo={jogo} formato={formato_torneio} rodadaOuFase={`Rodada ${jogo.rodada}`} />
           ))}
         </div>
       </div>
@@ -298,34 +297,66 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
   };
 
   const renderMataMata = () => {
-    const confrontos = chaveamento.partidas_iniciais || chaveamento.confrontos || [];
-    const faseAtual = chaveamento.fase || 'Mata-Mata';
+    const arvore = chaveamento.arvore || {};
+    const fases = Object.keys(arvore);
 
-    return (
-      <div className="space-y-6">
-        <div className="text-center">
-          <h3 className="text-2xl font-extrabold text-white">
-            {faseAtual} <span className="text-emerald-400">Eliminatória</span>
-          </h3>
-        </div>
-
+    // Fallback de segurança se não houver arvore dividida por rodadas
+    if (fases.length === 0) {
+      const confrontos = chaveamento.partidas_iniciais || [];
+      return (
         <div className="space-y-4">
           {confrontos.map((jogo, idx) => (
-            <CardPartida
-              key={idx}
-              idx={idx}
-              jogo={jogo}
-              formato={formato_torneio}
-              rodadaOuFase={faseAtual}
-            />
+            <CardPartida key={idx} idx={idx} jogo={jogo} formato={formato_torneio} rodadaOuFase="Mata-Mata" />
           ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-8">
+        <div className="text-center">
+          <h3 className="text-2xl font-extrabold text-white">
+            Árvore do <span className="text-emerald-400">Torneio</span>
+          </h3>
+          <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">
+            Acompanhe o caminho até a grande final
+          </p>
+        </div>
+
+        {/* Container horizontal com rolagem suave (Bracket Tree) */}
+        <div className="overflow-x-auto pb-8 pt-2">
+          <div className="flex items-stretch justify-start md:justify-center gap-8 min-w-max px-4">
+            {fases.map((nomeFase) => (
+              <div key={nomeFase} className="flex flex-col justify-around gap-6 relative">
+                {/* Título da Coluna / Rodada */}
+                <div className="text-center pb-2 border-b border-slate-700/80 mb-2">
+                  <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
+                    {nomeFase}
+                  </span>
+                </div>
+
+                {/* Lista de cards daquela rodada */}
+                <div className="flex flex-col justify-around flex-1 gap-6">
+                  {arvore[nomeFase].map((jogo, idx) => (
+                    <CardPartida
+                      key={idx}
+                      idx={idx}
+                      jogo={jogo}
+                      formato={formato_torneio}
+                      rodadaOuFase={nomeFase}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto pb-12">
+    <div className="w-full max-w-6xl mx-auto pb-12">
       {formato_torneio === 'copa' && renderCopa()}
       {formato_torneio === 'pontos_corridos' && renderPontosCorridos()}
       {formato_torneio === 'mata_mata' && renderMataMata()}

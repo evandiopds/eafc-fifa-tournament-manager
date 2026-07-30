@@ -2,14 +2,10 @@ import random
 import math
 
 def sortear_duplas(jogadores: list, balanceado: bool = False):
-    """
-    Sorteia os jogadores para formar times (duplas cooperativas).
-    """
     lista_jogadores = jogadores.copy()
     duplas_formadas = []
 
     if not balanceado:
-        # MODO 1: SORTEIO CEGO
         random.shuffle(lista_jogadores)
         for i in range(0, len(lista_jogadores), 2):
             if i + 1 < len(lista_jogadores):
@@ -19,7 +15,6 @@ def sortear_duplas(jogadores: list, balanceado: bool = False):
         return duplas_formadas
 
     else:
-        # MODO 2: SORTEIO BALANCEADO RIGOROSO
         pote_ouro = [j for j in lista_jogadores if j.get('nivel') == 'Ouro']
         pote_prata = [j for j in lista_jogadores if j.get('nivel') == 'Prata']
         pote_bronze = [j for j in lista_jogadores if j.get('nivel') == 'Bronze']
@@ -28,7 +23,6 @@ def sortear_duplas(jogadores: list, balanceado: bool = False):
         random.shuffle(pote_prata)
         random.shuffle(pote_bronze)
         
-        # Regra do Ímpar
         if len(lista_jogadores) % 2 != 0:
             if pote_prata:
                 jogador_solo = pote_prata.pop()
@@ -41,36 +35,27 @@ def sortear_duplas(jogadores: list, balanceado: bool = False):
                 
             duplas_formadas.append((jogador_solo, "Sem Dupla (Solo)"))
         
-        # Prioridade I: Ouro + Bronze
         while pote_ouro and pote_bronze:
             duplas_formadas.append((pote_ouro.pop(), pote_bronze.pop()))
             
-        # Prioridade Extra/Secundária: Ouro + Prata
         while pote_ouro and pote_prata:
             duplas_formadas.append((pote_ouro.pop(), pote_prata.pop()))
             
-        # Prioridade III: Prata + Bronze
         while pote_prata and pote_bronze:
             duplas_formadas.append((pote_prata.pop(), pote_bronze.pop()))
             
-        # Prioridade II: Prata + Prata
         while len(pote_prata) >= 2:
             duplas_formadas.append((pote_prata.pop(), pote_prata.pop()))
             
-        # Último Caso (Extremo): Ouro + Ouro
         while len(pote_ouro) >= 2:
             duplas_formadas.append((pote_ouro.pop(), pote_ouro.pop()))
             
-        # Fallback de segurança para sobras puras de Bronze
         while len(pote_bronze) >= 2:
             duplas_formadas.append((pote_bronze.pop(), pote_bronze.pop()))
                 
         return duplas_formadas
 
 def sortear_times(participantes: list, times_disponiveis: list) -> list:
-    """
-    Atribui aleatoriamente um time para cada participante (dupla ou jogador solo).
-    """
     times_embaralhados = times_disponiveis.copy()
     random.shuffle(times_embaralhados)
     
@@ -87,9 +72,6 @@ def sortear_times(participantes: list, times_disponiveis: list) -> list:
     return times_atribuidos
 
 def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida_e_volta: bool = True) -> dict:
-    """
-    Gera o chaveamento inteligente para Pontos Corridos (Ida e Volta), Mata-Mata ou Copa equilibrada.
-    """
     lista = participantes_com_times.copy()
     random.shuffle(lista)
     total = len(lista)
@@ -141,55 +123,107 @@ def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida
         }
 
     elif formato == "mata_mata":
-        # 1. Encontra a próxima potência de 2 >= total (2, 4, 8, 16, 32...)
-        potencia = 1
-        while potencia < total:
-            potencia *= 2
+        # 1. Encontra a maior potência de 2 menor ou igual a total (base principal da chave)
+        # Exemplo: Se total=5, base=4 (Semifinal). Se total=8, base=8 (Quartas).
+        base = 1
+        while base * 2 <= total:
+            base *= 2
             
-        num_byes = potencia - total
-        
-        # Nomes descritivos para a fase com base no tamanho do chaveamento
-        fases_nomes = {
-            2: "Final",
-            4: "Semifinal",
-            8: "Quartas de Final",
-            16: "Oitavas de Final",
-            32: "16avos de Final"
-        }
-        fase_nome = fases_nomes.get(potencia, "Eliminatória")
-        
         confrontos = []
+        rodadas_arvore = {}
         
-        # 2. Cria os confrontos de "Bye" (avanço direto) para os primeiros num_byes times
-        for i in range(num_byes):
-            confrontos.append({
-                "fase": fase_nome,
-                "casa": lista[i],
-                "fora": "AVANÇA DIRETO (Bye)"
-            })
+        fases_nomes = {
+            1: "Final",
+            2: "Semifinal",
+            4: "Quartas de Final",
+            8: "Oitavas de Final",
+            16: "16avos de Final"
+        }
+        
+        # CASO A: Número não é potência de 2 (Ex: 5, 6, 7 times -> Requer Play-In)
+        if base < total:
+            # Quantos jogos de Play-In precisamos para reduzir o total até a 'base'
+            num_playin = total - base
+            times_playin = num_playin * 2
             
-        # 3. Cria os confrontos reais entre os times restantes
-        for i in range(num_byes, total, 2):
-            if i + 1 < total:
-                confrontos.append({
-                    "fase": fase_nome,
+            rodada_playin = []
+            for i in range(0, times_playin, 2):
+                rodada_playin.append({
+                    "fase": "Play-In",
                     "casa": lista[i],
                     "fora": lista[i+1]
                 })
-            else:
-                confrontos.append({
-                    "fase": fase_nome,
-                    "casa": lista[i],
-                    "fora": "AVANÇA DIRETO (Bye)"
-                })
+            rodadas_arvore["Play-In"] = rodada_playin
+            
+            # Monta a rodada principal (ex: Semifinal)
+            # Quem jogou Play-In entra como "Aguardando" e quem sobrou entra direto!
+            fase_base_nome = fases_nomes.get(base // 2, "Eliminatória")
+            rodada_base = []
+            
+            # Slots para os vencedores do Play-In
+            for _ in range(num_playin):
+                rodada_base.append("Aguardando")
                 
+            # Slots para quem classificou direto
+            for i in range(times_playin, total):
+                rodada_base.append(lista[i])
+                
+            confrontos_fase_base = []
+            for i in range(0, len(rodada_base), 2):
+                confrontos_fase_base.append({
+                    "fase": fase_base_nome,
+                    "casa": rodada_base[i],
+                    "fora": rodada_base[i+1] if i+1 < len(rodada_base) else "Aguardando"
+                })
+            rodadas_arvore[fase_base_nome] = confrontos_fase_base
+            
+            # Gera rodadas futuras (Final, etc.) todas "Aguardando"
+            tamanho_futuro = (base // 2) // 2
+            while tamanho_futuro >= 1:
+                nome_futuro = fases_nomes.get(tamanho_futuro, "Fase Final")
+                rodadas_arvore[nome_futuro] = [
+                    {"fase": nome_futuro, "casa": "Aguardando", "fora": "Aguardando"}
+                    for _ in range(tamanho_futuro)
+                ]
+                tamanho_futuro //= 2
+                
+        # CASO B: Potência de 2 perfeita (Ex: 4, 8, 16 times -> Sem Play-In)
+        else:
+            tamanho_atual = base // 2
+            idx_lista = 0
+            
+            while tamanho_atual >= 1:
+                nome_fase = fases_nomes.get(tamanho_atual, "Eliminatória")
+                jogos_fase = []
+                
+                for _ in range(tamanho_atual):
+                    if idx_lista < total:
+                        jogos_fase.append({
+                            "fase": nome_fase,
+                            "casa": lista[idx_lista],
+                            "fora": lista[idx_lista+1]
+                        })
+                        idx_lista += 2
+                    else:
+                        jogos_fase.append({
+                            "fase": nome_fase,
+                            "casa": "Aguardando",
+                            "fora": "Aguardando"
+                        })
+                rodadas_arvore[nome_fase] = jogos_fase
+                tamanho_atual //= 2
+
+        # Junta todas as partidas em ordem cronológica para o banco de dados
+        todas_partidas = []
+        for chave_fase in rodadas_arvore:
+            todas_partidas.extend(rodadas_arvore[chave_fase])
+
         return {
             "formato": "mata_mata",
-            "fase": fase_nome,
+            "fase": list(rodadas_arvore.keys())[0],
             "total_participantes": total,
-            "tamanho_chave": potencia,
-            "byes": num_byes,
-            "partidas_iniciais": confrontos
+            "arvore": rodadas_arvore,
+            "partidas_iniciais": todas_partidas
         }
 
     elif formato == "copa":

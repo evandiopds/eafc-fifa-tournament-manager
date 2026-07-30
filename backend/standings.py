@@ -4,9 +4,6 @@ import database
 def ordenar_classificacao(tabela_times: list) -> list:
     """
     Ordena a tabela de classificação baseada nos múltiplos critérios de desempate.
-    
-    :param tabela_times: Lista de dicionários contendo as estatísticas de cada time[cite: 9].
-    :return: Lista ordenada do primeiro ao último colocado[cite: 9].
     """
     if not tabela_times:
         return []
@@ -40,7 +37,6 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str) -> list:
         database.Partida.status == "finalizada"
     ).all()
 
-    # Inicializa estatísticas zeradas para cada time
     stats = {}
     for p in participantes:
         stats[p.id] = {
@@ -58,19 +54,16 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str) -> list:
             "saldo_gols": 0
         }
 
-    # Processa cada partida finalizada
     for pt in partidas:
         c_id = pt.time_casa_id
         f_id = pt.time_fora_id
         
-        # Ignora se o time não estiver mais no dicionário de estatísticas
         if c_id not in stats or f_id not in stats:
             continue
 
         g_casa = pt.gols_casa or 0
         g_fora = pt.gols_fora or 0
 
-        # Contabiliza Jogos e Gols
         stats[c_id]["jogos"] += 1
         stats[f_id]["jogos"] += 1
         
@@ -79,7 +72,6 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str) -> list:
         stats[f_id]["gols_pro"] += g_fora
         stats[f_id]["gols_contra"] += g_casa
 
-        # Distribuição de Pontos, Vitórias, Empates e Derrotas
         if g_casa > g_fora:
             stats[c_id]["pontos"] += 3
             stats[c_id]["vitorias"] += 1
@@ -94,7 +86,6 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str) -> list:
             stats[c_id]["empates"] += 1
             stats[f_id]["empates"] += 1
 
-    # Atualiza o Saldo de Gols
     for time_id in stats:
         stats[time_id]["saldo_gols"] = stats[time_id]["gols_pro"] - stats[time_id]["gols_contra"]
 
@@ -103,21 +94,31 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str) -> list:
 
 def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
     """
-    Determina o vencedor de um confronto de mata-mata (incluindo pênaltis) e
-    registra o avanço para a próxima partida da árvore se ela existir.
+    Determina o vencedor de um confronto de mata-mata (incluindo pênaltis e Acesso Direto)
+    e registra o avanço para a próxima partida da árvore se ela existir.
     """
-    g_casa = partida.gols_casa or 0
-    g_fora = partida.gols_fora or 0
-    
+    # 1. Checa se algum lado é Acesso Direto (A/D) para avanço automático
+    time_casa = db.query(database.Participante).filter(database.Participante.id == partida.time_casa_id).first()
+    time_fora = db.query(database.Participante).filter(database.Participante.id == partida.time_fora_id).first()
+
     vencedor_id = None
-    if g_casa > g_fora:
+    if time_fora and "Acesso Direto" in time_fora.nome_clube:
         vencedor_id = partida.time_casa_id
-    elif g_fora > g_casa:
+    elif time_casa and "Acesso Direto" in time_casa.nome_clube:
         vencedor_id = partida.time_fora_id
     else:
-        pen_casa = partida.penaltis_casa or 0
-        pen_fora = partida.penaltis_fora or 0
-        vencedor_id = partida.time_casa_id if pen_casa > pen_fora else partida.time_fora_id
+        # 2. Confronto normal por gols/pênaltis
+        g_casa = partida.gols_casa or 0
+        g_fora = partida.gols_fora or 0
+        
+        if g_casa > g_fora:
+            vencedor_id = partida.time_casa_id
+        elif g_fora > g_casa:
+            vencedor_id = partida.time_fora_id
+        else:
+            pen_casa = partida.penaltis_casa or 0
+            pen_fora = partida.penaltis_fora or 0
+            vencedor_id = partida.time_casa_id if pen_casa > pen_fora else partida.time_fora_id
 
     proxima_partida = db.query(database.Partida).filter(
         database.Partida.torneio_id == partida.torneio_id,
