@@ -1,4 +1,5 @@
 import random
+import math
 
 def sortear_duplas(jogadores: list, balanceado: bool = False):
     """
@@ -80,14 +81,12 @@ def sortear_times(participantes: list, times_disponiveis: list) -> list:
     :param times_disponiveis: Lista de strings com os nomes dos times.
     :return: Lista de dicionários vinculando o participante ao time sorteado.
     """
-    # Fazemos uma cópia para não alterar a lista original e embaralhamos
     times_embaralhados = times_disponiveis.copy()
     random.shuffle(times_embaralhados)
     
     times_atribuidos = []
 
     for participante in participantes:
-        # podemos usar o .pop() com segurança para garantir que nenhum time se repita.
         time_sorteado = times_embaralhados.pop()
         
         times_atribuidos.append({
@@ -96,3 +95,98 @@ def sortear_times(participantes: list, times_disponiveis: list) -> list:
         })
         
     return times_atribuidos
+
+def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida_e_volta: bool = True) -> dict:
+    """
+    Gera o chaveamento inteligente para Pontos Corridos (Ida e Volta), Mata-Mata ou Copa equilibrada.
+    """
+    lista = participantes_com_times.copy()
+    random.shuffle(lista)
+    total = len(lista)
+    
+    if formato == "pontos_corridos":
+        times_tabela = lista.copy()
+        if total % 2 != 0:
+            times_tabela.append("FOLGA (Bye)")
+            
+        num_times = len(times_tabela)
+        total_rodadas = num_times - 1
+        metade = num_times // 2
+        
+        rodadas_ida = []
+        
+        for r in range(total_rodadas):
+            confrontos_rodada = []
+            for i in range(metade):
+                casa = times_tabela[i]
+                fora = times_tabela[num_times - 1 - i]
+                
+                if casa != "FOLGA (Bye)" and fora != "FOLGA (Bye)":
+                    confrontos_rodada.append({
+                        "rodada": r + 1,
+                        "turno": "Ida",
+                        "casa": casa,
+                        "fora": fora
+                    })
+            rodadas_ida.extend(confrontos_rodada)
+            
+            times_tabela = [times_tabela[0]] + [times_tabela[-1]] + times_tabela[1:-1]
+            
+        confrontos_totais = rodadas_ida.copy()
+        
+        if ida_e_volta:
+            for jogo in rodadas_ida:
+                confrontos_totais.append({
+                    "rodada": jogo["rodada"] + total_rodadas,
+                    "turno": "Volta",
+                    "casa": jogo["fora"],
+                    "fora": jogo["casa"]
+                })
+                
+        return {
+            "formato": "pontos_corridos",
+            "ida_e_volta": ida_e_volta,
+            "total_rodadas": (total_rodadas * 2) if ida_e_volta else total_rodadas,
+            "tabela": confrontos_totais
+        }
+
+    elif formato == "mata_mata":
+        confrontos = []
+        for i in range(0, total - 1, 2):
+            confrontos.append({
+                "fase": "Eliminatória",
+                "casa": lista[i],
+                "fora": lista[i+1]
+            })
+        if total % 2 != 0:
+            confrontos.append({
+                "fase": "Eliminatória",
+                "casa": lista[-1],
+                "fora": "AVANÇA DIRETO (Bye)"
+            })
+        return {
+            "formato": "mata_mata",
+            "partidas_iniciais": confrontos
+        }
+
+    elif formato == "copa":
+        num_grupos = max(1, math.ceil(total / 4))
+        letras = ["A", "B", "C", "D", "E", "F", "G", "H"]
+        
+        grupos = {}
+        for i in range(num_grupos):
+            nome_grupo = f"Grupo {letras[i]}" if i < len(letras) else f"Grupo {i+1}"
+            grupos[nome_grupo] = []
+            
+        for idx, participante in enumerate(lista):
+            idx_grupo = idx % num_grupos
+            nome_grupo = f"Grupo {letras[idx_grupo]}" if idx_grupo < len(letras) else f"Grupo {idx_grupo+1}"
+            grupos[nome_grupo].append(participante)
+            
+        return {
+            "formato": "copa",
+            "total_grupos": num_grupos,
+            "grupos": grupos
+        }
+
+    return {"formato": formato, "erro": "Formato desconhecido"}

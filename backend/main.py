@@ -9,7 +9,7 @@ import asyncio
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
-from matchmaking import sortear_duplas, sortear_times
+from matchmaking import sortear_duplas, sortear_times, gerar_chaveamento_aleatorio
 from validators import validar_quantidade_times
 
 import database
@@ -70,6 +70,8 @@ class Jogador(BaseModel):
 class SorteioRequest(BaseModel):
     jogadores: List[Jogador]
     times: List[str]
+    modo: str = "duplas"           
+    formato_torneio: str = "mata_mata" 
     balanceado: bool = True
 
 class TorneioCreate(BaseModel):
@@ -77,28 +79,44 @@ class TorneioCreate(BaseModel):
     formato: str
     senha: str
 
+class TorneioAcesso(BaseModel):
+    nome_ou_id: str
+    senha: str
 
-@app.post("/api/sorteio/duplas")
-def realizar_sorteio_duplas(payload: SorteioRequest):
+
+@app.post("/api/sorteio/gerar")
+def realizar_sorteio_geral(payload: SorteioRequest):
     lista_jogadores = [{"nome": j.nome, "nivel": j.nivel} for j in payload.jogadores]
     
-    validacao = validar_quantidade_times(len(lista_jogadores), len(payload.times), formato="dupla")
-    
+    validacao = validar_quantidade_times(len(lista_jogadores), len(payload.times), formato=payload.modo)
     if not validacao["valido"]:
         raise HTTPException(status_code=400, detail=validacao["mensagem"])
         
-    duplas_formadas = sortear_duplas(lista_jogadores, balanceado=payload.balanceado)
-    resultado_final = sortear_times(duplas_formadas, payload.times)
+    if payload.modo == "solo":
+        participantes = [j["nome"] for j in lista_jogadores]
+    else:
+        participantes = sortear_duplas(lista_jogadores, balanceado=payload.balanceado)
+        
+    participantes_com_times = sortear_times(participantes, payload.times)
+    
+    chaveamento = gerar_chaveamento_aleatorio(participantes_com_times, payload.formato_torneio)
     
     return {
         "status": "sucesso",
-        "total_jogadores": len(lista_jogadores),
-        "total_times_utilizados": len(resultado_final),
-        "sorteio": resultado_final
+        "modo": payload.modo,
+        "formato_torneio": payload.formato_torneio,
+        "total_participantes": len(participantes_com_times),
+        "total_times_utilizados": len(participantes_com_times),
+        "participantes_com_times": participantes_com_times,
+        "chaveamento": chaveamento
     }
 
 @app.post("/api/torneios", status_code=201)
 def criar_torneio(torneio: TorneioCreate, db: Session = Depends(get_db)):
+    torneio_existente = db.query(database.Torneio).filter(database.Torneio.nome == torneio.nome).first()
+    if torneio_existente:
+        raise HTTPException(status_code=400, detail="Esse nome de torneio já está em uso! Escolha outro.")
+
     novo_id = str(uuid.uuid4())
     
     novo_torneio = database.Torneio(
@@ -115,4 +133,29 @@ def criar_torneio(torneio: TorneioCreate, db: Session = Depends(get_db)):
     return {
         "mensagem": "Torneio criado com sucesso!", 
         "torneio_id": novo_id
+    }
+
+@app.post("/api/torneios/acessar")
+def acessar_torneio(payload: TorneioAcesso, db: Session = Depends(get_db)):
+    torneio = db.query(database.Torneio).filter(
+        (database.Torneio.id == payload.nome_ou_id) | (database.Torneio.nome == payload.nome_ou_id)
+    ).first()
+    
+    if not torneio or torneio.senha_hash != payload.senha:
+        raise HTTPException(status_code=401, detail="Torneio não encontrado ou senha incorreta.")
+        
+    torneio.ultimo_acesso = datetime.utcnow()
+    db.commit()
+    db.refresh(torneio)
+    
+    return {
+        "status": "sucesso",
+        "mensagem": "Acesso concedido!",
+        "torneio": {
+            "id": torneio.id,
+            "nome": torneio.nome,
+            "formato": torneio.formato,
+            "criado_em": torneio.criado_em,
+            "ultimo_acesso": torneio.ultimo_acesso
+        }
     }

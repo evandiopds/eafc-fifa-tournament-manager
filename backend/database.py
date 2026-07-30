@@ -20,7 +20,7 @@ class Torneio(Base):
     __tablename__ = "torneios"
 
     id = Column(String, primary_key=True, index=True)
-    nome = Column(String, index=True)
+    nome = Column(String, unique=True, index=True)
     formato = Column(String)
     senha_hash = Column(String)
     criado_em = Column(DateTime, default=datetime.datetime.utcnow)
