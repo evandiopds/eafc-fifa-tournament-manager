@@ -20,8 +20,8 @@
     { "nomeOficial": "Barcelona", "sigla": "BAR", "apelidos": ["barca", "fcb", "cules"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/4/43/FCBarcelona.svg" }
   ],
   "Premier League": [
-    { "nomeOficial": "Manchester City", "sigla": "MCI", "apelidos": ["city", "citizens"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/0/02/Manchester_City_Football_Club.png" },
-    { "nomeOficial": "Manchester United", "sigla": "MUN", "apelidos": ["united", "red devils", "man utd"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/4/43/ManchesterUnited.svg" },
+    { "nomeOficial": "Manchester City", "sigla": "MCI", "apelidos": ["man city", "city", "citizens"], "escudo": "https://upload.wikimedia.org/wikipedia/en/e/eb/Manchester_City_FC_badge.svg" },
+    { "nomeOficial": "Manchester United", "sigla": "MUN", "apelidos": ["man united", "united", "red devils", "man utd"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/4/43/ManchesterUnited.svg" },
     { "nomeOficial": "Chelsea", "sigla": "CHE", "apelidos": ["blues"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/c/cc/Chelsea_FC.svg" },
     { "nomeOficial": "Liverpool", "sigla": "LIV", "apelidos": ["reds", "lfc"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/0/0c/Liverpool_FC.svg" },
     { "nomeOficial": "Arsenal", "sigla": "ARS", "apelidos": ["gunners"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/5/53/Arsenal_FC.svg" },
@@ -38,7 +38,7 @@
     { "nomeOficial": "Olympique de Marseille", "sigla": "OM", "apelidos": ["marseille", "olympique"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/d/d8/Olympique_de_Marseille.svg" }
   ],
   "Bundesliga": [
-    { "nomeOficial": "Bayern München", "sigla": "BAY", "apelidos": ["bayern", "baviera", "munique"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_M%C3%BCnchen_logo_%282017%29.svg" },
+    { "nomeOficial": "Bayern München", "sigla": "BAY", "apelidos": ["bayern", "baviera", "munique", "bayern de munique"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/1/1b/FC_Bayern_M%C3%BCnchen_logo_%282017%29.svg" },
     { "nomeOficial": "Borussia Dortmund", "sigla": "BVB", "apelidos": ["borussia", "dortmund"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/6/67/Borussia_Dortmund_logo.svg" }
   ],
   "Serie A": [

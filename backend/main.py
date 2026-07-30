@@ -14,6 +14,8 @@ from validators import validar_quantidade_times
 
 import database
 
+from typing import Optional
+
 async def rotina_limpeza_banco():
     while True:
         db = database.SessionLocal()
@@ -157,5 +159,59 @@ def acessar_torneio(payload: TorneioAcesso, db: Session = Depends(get_db)):
             "formato": torneio.formato,
             "criado_em": torneio.criado_em,
             "ultimo_acesso": torneio.ultimo_acesso
+        }
+    }
+
+class PlacarRequest(BaseModel):
+    torneio_id: Optional[str] = None
+    formato_torneio: str
+    rodada_ou_fase: str
+    index_partida: int
+    gols_casa: int
+    gols_visitante: int
+    penaltis_casa: Optional[int] = None
+    penaltis_visitante: Optional[int] = None
+
+@app.post("/api/torneios/placar")
+def registrar_placar_partida(payload: PlacarRequest):
+    """
+    Valida e registra o placar de um jogo.
+    No mata-mata, se houver empate nos 90 minutos, exige desempate por pênaltis.
+    """
+    if payload.gols_casa < 0 or payload.gols_visitante < 0:
+        raise HTTPException(status_code=400, detail="Gols não podem ser negativos.")
+
+    # Regra de Pênaltis no Mata-Mata
+    if payload.formato_torneio == "mata_mata" and payload.gols_casa == payload.gols_visitante:
+        if payload.penaltis_casa is None or payload.penaltis_visitante is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Jogos eliminatórios empatados precisam de decisão por pênaltis!"
+            )
+        if payload.penaltis_casa == payload.penaltis_visitante:
+            raise HTTPException(
+                status_code=400,
+                detail="A disputa de pênaltis não pode terminar empatada!"
+            )
+
+    vencedor = None
+    if payload.gols_casa > payload.gols_visitante:
+        vencedor = "casa"
+    elif payload.gols_visitante > payload.gols_casa:
+        vencedor = "visitante"
+    elif payload.formato_torneio == "mata_mata":
+        vencedor = "casa" if (payload.penaltis_casa or 0) > (payload.penaltis_visitante or 0) else "visitante"
+    else:
+        vencedor = "empate"
+
+    return {
+        "status": "sucesso",
+        "mensagem": "Placar registrado corretamente!",
+        "placar": {
+            "gols_casa": payload.gols_casa,
+            "gols_visitante": payload.gols_visitante,
+            "penaltis_casa": payload.penaltis_casa,
+            "penaltis_visitante": payload.penaltis_visitante,
+            "vencedor": vencedor
         }
     }
