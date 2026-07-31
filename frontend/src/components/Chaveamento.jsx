@@ -3,6 +3,7 @@ import axios from 'axios';
 import { buscarTime } from '../utils/teamSearch';
 import escudoGen from '../assets/escudo_gen.svg';
 import escudoOff from '../assets/escudo_off.svg';
+import TabelaClassificacao from './TabelaClassificacao';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
@@ -20,7 +21,7 @@ function getEscudo(nomeTime) {
 }
 
 // Card individual da partida na Árvore
-function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
+function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
   const [penCasa, setPenCasa] = useState(jogo.penaltis_casa ?? '');
@@ -31,7 +32,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
   const nomeCasa = typeof jogo.casa === 'string' ? jogo.casa : jogo.casa?.time || jogo.time || 'Aguardando';
   const nomeFora = typeof jogo.fora === 'string' ? jogo.fora : jogo.fora?.time || jogo.visitante?.time || 'Aguardando';
 
-  // Identifica se a partida ainda está esperando a definição de adversários
   const isAguardando = nomeCasa === 'Aguardando' || nomeFora === 'Aguardando';
 
   const handleNumeroChange = (setter, valor) => {
@@ -68,7 +68,8 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
     setStatusMsg(null);
 
     try {
-      await axios.post(`${API_URL}/torneios/placar`, {
+      const resp = await axios.post(`${API_URL}/torneios/placar`, {
+        torneio_id: torneioId,
         formato_torneio: formato,
         rodada_ou_fase: rodadaOuFase,
         index_partida: idx,
@@ -79,6 +80,11 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
       });
 
       setStatusMsg({ erro: false, texto: 'Salvo!' });
+
+      // Atualiza a tabela de classificação em tempo real se retornada pelo backend
+      if (resp.data?.classificacao && onPlacarSalvo) {
+        onPlacarSalvo(resp.data.classificacao);
+      }
     } catch (err) {
       setStatusMsg({
         erro: true,
@@ -216,6 +222,9 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase }) {
 
 export default function Chaveamento({ torneio, dadosSorteados }) {
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
+  
+  // Guardamos apenas atualizações feitas ao salvar placares na tela
+  const [tabelaAtualizada, setTabelaAtualizada] = useState(null);
 
   if (!dadosSorteados || !dadosSorteados.chaveamento) {
     return (
@@ -228,6 +237,19 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
   }
 
   const { formato_torneio, chaveamento } = dadosSorteados;
+
+  // A tabela exibida será a atualizada em tempo real (se existir), ou a inicial do chaveamento
+  const classificacao =
+    tabelaAtualizada ||
+    chaveamento?.classificacao ||
+    dadosSorteados?.classificacao ||
+    [];
+
+  const handleAtualizarClassificacao = (novaClassificacao) => {
+    if (novaClassificacao && Array.isArray(novaClassificacao)) {
+      setTabelaAtualizada(novaClassificacao);
+    }
+  };
 
   const renderCopa = () => {
     const grupos = chaveamento.grupos || {};
@@ -248,12 +270,23 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
               </div>
               <div className="p-4 space-y-3">
                 {grupos[nomeGrupo].map((item, idx) => (
-                  <CardPartida key={idx} idx={idx} jogo={item} formato={formato_torneio} rodadaOuFase={nomeGrupo} />
+                  <CardPartida 
+                    key={idx} 
+                    idx={idx} 
+                    jogo={item} 
+                    formato={formato_torneio} 
+                    rodadaOuFase={nomeGrupo}
+                    torneioId={torneio?.id}
+                    onPlacarSalvo={handleAtualizarClassificacao}
+                  />
                 ))}
               </div>
             </div>
           ))}
         </div>
+
+        {/* Tabela de Classificação da Copa */}
+        <TabelaClassificacao classificacao={classificacao} />
       </div>
     );
   };
@@ -289,9 +322,20 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
 
         <div className="space-y-3">
           {jogosRodada.map((jogo, idx) => (
-            <CardPartida key={idx} idx={idx} jogo={jogo} formato={formato_torneio} rodadaOuFase={`Rodada ${jogo.rodada}`} />
+            <CardPartida 
+              key={idx} 
+              idx={idx} 
+              jogo={jogo} 
+              formato={formato_torneio} 
+              rodadaOuFase={`Rodada ${jogo.rodada}`}
+              torneioId={torneio?.id}
+              onPlacarSalvo={handleAtualizarClassificacao}
+            />
           ))}
         </div>
+
+        {/* TASK #39: Componente TabelaClassificacao logo abaixo dos confrontos da rodada */}
+        <TabelaClassificacao classificacao={classificacao} />
       </div>
     );
   };
@@ -300,13 +344,20 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     const arvore = chaveamento.arvore || {};
     const fases = Object.keys(arvore);
 
-    // Fallback de segurança se não houver arvore dividida por rodadas
     if (fases.length === 0) {
       const confrontos = chaveamento.partidas_iniciais || [];
       return (
         <div className="space-y-4">
           {confrontos.map((jogo, idx) => (
-            <CardPartida key={idx} idx={idx} jogo={jogo} formato={formato_torneio} rodadaOuFase="Mata-Mata" />
+            <CardPartida 
+              key={idx} 
+              idx={idx} 
+              jogo={jogo} 
+              formato={formato_torneio} 
+              rodadaOuFase="Mata-Mata"
+              torneioId={torneio?.id}
+              onPlacarSalvo={handleAtualizarClassificacao}
+            />
           ))}
         </div>
       );
@@ -323,19 +374,16 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           </p>
         </div>
 
-        {/* Container horizontal com rolagem suave (Bracket Tree) */}
         <div className="overflow-x-auto pb-8 pt-2">
           <div className="flex items-stretch justify-start md:justify-center gap-8 min-w-max px-4">
             {fases.map((nomeFase) => (
               <div key={nomeFase} className="flex flex-col justify-around gap-6 relative">
-                {/* Título da Coluna / Rodada */}
                 <div className="text-center pb-2 border-b border-slate-700/80 mb-2">
                   <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
                     {nomeFase}
                   </span>
                 </div>
 
-                {/* Lista de cards daquela rodada */}
                 <div className="flex flex-col justify-around flex-1 gap-6">
                   {arvore[nomeFase].map((jogo, idx) => (
                     <CardPartida
@@ -344,6 +392,8 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                       jogo={jogo}
                       formato={formato_torneio}
                       rodadaOuFase={nomeFase}
+                      torneioId={torneio?.id}
+                      onPlacarSalvo={handleAtualizarClassificacao}
                     />
                   ))}
                 </div>

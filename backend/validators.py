@@ -28,14 +28,17 @@ def validar_quantidade_times(num_jogadores: int, num_times: int, formato: str = 
 
 def validar_id_torneio(id_torneio: str) -> dict:
     """
-    Valida o formato do ID do torneio usando Expressões Regulares (Regex).
+    Valida o formato do ID do torneio:
+    - Tamanho: 1 a 15 caracteres
+    - Permitido: Letras (a-z, A-Z), Números (0-9), Hífen (-), Underline (_) e Ponto (.)
+    - Proibido: Espaços em branco e outros símbolos especiais
     """
-    padrao_seguro = r"^[a-zA-Z0-9-]{4,20}$"
+    padrao_seguro = r"^[a-zA-Z0-9_.-]{1,15}$"
     
-    if not re.match(padrao_seguro, id_torneio):
+    if not id_torneio or not re.match(padrao_seguro, id_torneio):
         return {
             "valido": False,
-            "mensagem": "ID inválido. Utilize apenas letras, números ou hífens (sem espaços), contendo entre 4 e 20 caracteres."
+            "mensagem": "ID inválido. Use de 1 a 15 caracteres (apenas letras, números, ponto, hífen ou underline; sem espaços)."
         }
         
     return {
@@ -45,12 +48,20 @@ def validar_id_torneio(id_torneio: str) -> dict:
 
 def validar_senha_torneio(senha: str) -> dict:
     """
-    Valida se a senha atende aos requisitos mínimos de segurança.
+    Valida a senha do torneio:
+    - Tamanho: 4 a 8 caracteres
+    - Permitido: Tudo, exceto espaços em branco
     """
-    if not senha or len(senha) < 6:
+    if not senha or len(senha) < 4 or len(senha) > 8:
         return {
             "valido": False,
-            "mensagem": "A senha deve conter no mínimo 6 caracteres."
+            "mensagem": "A senha deve conter entre 4 e 8 caracteres."
+        }
+        
+    if " " in senha:
+        return {
+            "valido": False,
+            "mensagem": "A senha não pode conter espaços em branco."
         }
         
     return {

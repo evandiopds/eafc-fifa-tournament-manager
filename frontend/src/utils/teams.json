@@ -3,7 +3,7 @@
     { "nomeOficial": "Palmeiras", "sigla": "SEP", "apelidos": ["pal", "parmera", "porco"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/1/10/Palmeiras_logo.svg" },
     { "nomeOficial": "Corinthians", "sigla": "SCCP", "apelidos": ["cor", "timao", "gavia", "coringao"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/b/b4/Corinthians_simbolo.png" },
     { "nomeOficial": "Flamengo", "sigla": "CRF", "apelidos": ["fla", "mengo", "mengao", "rubro negro"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/2/2e/Flamengo_braz_logo.svg" },
-    { "nomeOficial": "Vasco da Gama", "sigla": "CRV", "apelidos": ["vas", "vascao", "cruzmaltino", "gigante"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/a/ac/CRVascodaGama.png" },
+    { "nomeOficial": "Vasco da Gama", "sigla": "CRV", "apelidos": ["vasco", "vas", "vascao", "cruzmaltino", "gigante"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/a/ac/CRVascodaGama.png" },
     { "nomeOficial": "Atlético Mineiro", "sigla": "CAM", "apelidos": ["galo", "atletico mg", "mineiro"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/5/5f/Atletico_mineiro_galo.png" },
     { "nomeOficial": "Cruzeiro", "sigla": "CEC", "apelidos": ["cru", "raposa", "cabuloso", "zeiro"], "escudo": "https://upload.wikimedia.org/wikipedia/commons/9/90/Cruzeiro_Esporte_Clube_%28logo%29.svg" },
     { "nomeOficial": "Bahia", "sigla": "ECB", "apelidos": ["bah", "tricolor de aco", "bahea"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/2/28/Esporte_Clube_Bahia_logo.png" },

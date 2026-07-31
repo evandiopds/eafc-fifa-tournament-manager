@@ -1,21 +1,51 @@
 from sqlalchemy.orm import Session
+from functools import cmp_to_key
 import database
 
-def ordenar_classificacao(tabela_times: list) -> list:
+def criar_comparador(historico_confrontos: dict):
     """
-    Ordena a tabela de classificação baseada nos múltiplos critérios de desempate.
+    Cria a função de comparação que aplica a hierarquia oficial de desempate:
+    1º Pontos -> 2º Confronto Direto -> 3º Saldo de Gols -> 4º Gols Pró
+    """
+    def comparar_times(a, b):
+        # 1. Pontos (maior pontuação fica na frente)
+        if a["pontos"] != b["pontos"]:
+            return b["pontos"] - a["pontos"]
+            
+        chave_ab = (a["participante_id"], b["participante_id"])
+        chave_ba = (b["participante_id"], a["participante_id"])
+        
+        if chave_ab in historico_confrontos:
+            vencedor_id = historico_confrontos[chave_ab]
+            if vencedor_id == a["participante_id"]:
+                return -1
+            elif vencedor_id == b["participante_id"]:
+                return 1
+        elif chave_ba in historico_confrontos:
+            vencedor_id = historico_confrontos[chave_ba]
+            if vencedor_id == a["participante_id"]:
+                return -1
+            elif vencedor_id == b["participante_id"]:
+                return 1
+
+        if a["saldo_gols"] != b["saldo_gols"]:
+            return b["saldo_gols"] - a["saldo_gols"]
+
+        return b["gols_pro"] - a["gols_pro"]
+
+    return comparar_times
+
+
+def ordenar_classificacao(tabela_times: list, historico_confrontos: dict) -> list:
+    """
+    Ordena a tabela aplicando o comparador de desempates.
     """
     if not tabela_times:
         return []
 
     tabela_ordenada = sorted(
         tabela_times,
-        key=lambda time: (
-            time.get("pontos", 0),
-            time.get("saldo_gols", 0),
-            time.get("gols_pro", 0)
-        ),
-        reverse=True
+        key=cmp_to_key(criar_comparador(historico_confrontos))
     )
     
     for posicao, time in enumerate(tabela_ordenada, start=1):
@@ -54,6 +84,9 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str) -> list:
             "saldo_gols": 0
         }
 
+    # Mapeia quem venceu o duelo direto entre (Time 1, Time 2) -> ID Vencedor
+    historico_confrontos = {}
+
     for pt in partidas:
         c_id = pt.time_casa_id
         f_id = pt.time_fora_id
@@ -76,20 +109,23 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str) -> list:
             stats[c_id]["pontos"] += 3
             stats[c_id]["vitorias"] += 1
             stats[f_id]["derrotas"] += 1
+            historico_confrontos[(c_id, f_id)] = c_id
         elif g_fora > g_casa:
             stats[f_id]["pontos"] += 3
             stats[f_id]["vitorias"] += 1
             stats[c_id]["derrotas"] += 1
+            historico_confrontos[(c_id, f_id)] = f_id
         else:
             stats[c_id]["pontos"] += 1
             stats[f_id]["pontos"] += 1
             stats[c_id]["empates"] += 1
             stats[f_id]["empates"] += 1
+            historico_confrontos[(c_id, f_id)] = None
 
     for time_id in stats:
         stats[time_id]["saldo_gols"] = stats[time_id]["gols_pro"] - stats[time_id]["gols_contra"]
 
-    return ordenar_classificacao(list(stats.values()))
+    return ordenar_classificacao(list(stats.values()), historico_confrontos)
 
 
 def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
@@ -97,7 +133,6 @@ def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
     Determina o vencedor de um confronto de mata-mata (incluindo pênaltis e Acesso Direto)
     e registra o avanço para a próxima partida da árvore se ela existir.
     """
-    # 1. Checa se algum lado é Acesso Direto (A/D) para avanço automático
     time_casa = db.query(database.Participante).filter(database.Participante.id == partida.time_casa_id).first()
     time_fora = db.query(database.Participante).filter(database.Participante.id == partida.time_fora_id).first()
 
@@ -107,7 +142,6 @@ def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
     elif time_casa and "Acesso Direto" in time_casa.nome_clube:
         vencedor_id = partida.time_fora_id
     else:
-        # 2. Confronto normal por gols/pênaltis
         g_casa = partida.gols_casa or 0
         g_fora = partida.gols_fora or 0
         

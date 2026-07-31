@@ -4,14 +4,12 @@ import axios from 'axios';
 const API_URL = 'http://127.0.0.1:8000/api';
 
 export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
-  // Modo do Sorteio: "aleatorio" (padrão) ou "manual"
   const [modoEntrada, setModoEntrada] = useState('aleatorio');
-  
-  // Modo de Jogadores: "solo" (1v1) ou "duplas" (2v2)
   const [modoJogo, setModoJogo] = useState('solo');
+  const [balanceado, setBalanceado] = useState(true); 
 
-  // Estados do Modo Aleatório
   const [inputJogador, setInputJogador] = useState('');
+  const [inputNivel, setInputNivel] = useState('Prata');
   const [inputTime, setInputTime] = useState('');
   
   const [jogadores, setJogadores] = useState([
@@ -25,20 +23,17 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
     'Real Madrid', 'Barcelona', 'Bayern de Munique', 'Manchester City'
   ]);
 
-  // Estados do Modo Manual (Pares já definidos)
   const [inputNomeManual, setInputNomeManual] = useState('');
   const [inputTimeManual, setInputTimeManual] = useState('');
   const [paresManuais, setParesManuais] = useState([]);
 
-  // Estados de UI
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState(null);
 
-  // Manipuladores de Adição/Remoção - Aleatório
   const adicionarJogador = (e) => {
     e.preventDefault();
     if (!inputJogador.trim()) return;
-    setJogadores([...jogadores, { nome: inputJogador.trim(), nivel: 'Prata' }]);
+    setJogadores([...jogadores, { nome: inputJogador.trim(), nivel: inputNivel }]);
     setInputJogador('');
   };
 
@@ -57,7 +52,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
     setTimes(times.filter((_, i) => i !== index));
   };
 
-  // Manipuladores de Adição/Remoção - Manual
   const adicionarParManual = (e) => {
     e.preventDefault();
     if (!inputNomeManual.trim() || !inputTimeManual.trim()) return;
@@ -73,7 +67,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
     setParesManuais(paresManuais.filter((_, i) => i !== index));
   };
 
-  // Envia os dados para a API e gera o chaveamento
   const handleGerarTorneio = async () => {
     setErro(null);
     setCarregando(true);
@@ -88,19 +81,21 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           times: times,
           modo: modoJogo,
           formato_torneio: torneio.formato,
-          balanceado: false
+          balanceado: balanceado,
+          manual: false
         };
       } else {
-        // Se for Modo Manual, criamos uma lista adaptada pro endpoint
         const listaNomes = paresManuais.map((p) => ({ nome: p.participante, nivel: 'Prata' }));
         const listaTimes = paresManuais.map((p) => p.time);
 
         payload = {
+          torneio_id: torneio?.id,
           jogadores: listaNomes,
           times: listaTimes,
           modo: 'solo',
           formato_torneio: torneio.formato,
-          balanceado: false
+          balanceado: false,
+          manual: true
         };
       }
 
@@ -116,8 +111,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
   };
 
   return (
-    <div className="w-full bg-slate-800/90 border border-slate-700 rounded-2xl p-6 md:p-8 shadow-2xl">
-      {/* Cabeçalho */}
+    <div className="w-full max-w-4xl mx-auto bg-slate-800/90 border border-slate-700 rounded-2xl p-6 md:p-8 shadow-2xl">
       <div className="flex flex-col md:flex-row items-center justify-between border-b border-slate-700 pb-6 mb-6 gap-4">
         <div>
           <h2 className="text-2xl font-extrabold text-white">
@@ -128,7 +122,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           </p>
         </div>
 
-        {/* Seletor superior: SOLO vs DUPLAS */}
         <div className="flex bg-slate-900 p-1 rounded-lg border border-slate-700">
           <button
             type="button"
@@ -155,7 +148,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
         </div>
       </div>
 
-      {/* Seletor de Modo de Entrada: ALEATÓRIO vs MANUAL */}
       <div className="flex gap-2 mb-6">
         <button
           type="button"
@@ -181,34 +173,63 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
         </button>
       </div>
 
-      {/* Exibição de Erro */}
+      {/* Toggle de Sorteio Balanceado (Ouro/Prata/Bronze) visível no modo aleatório */}
+      {modoEntrada === 'aleatorio' && (
+        <div className="flex items-center justify-between bg-slate-900/80 border border-slate-700 px-5 py-3 rounded-xl mb-6">
+          <div>
+            <p className="text-sm font-bold text-white">Sorteio Balanceado por Potes (Ouro / Prata / Bronze)</p>
+            <p className="text-xs text-slate-400">Distribui os níveis de habilidade de forma justa nas duplas</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBalanceado(!balanceado)}
+            className={`px-4 py-2 rounded-lg text-xs font-black uppercase transition-all ${
+              balanceado
+                ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20'
+                : 'bg-slate-800 text-slate-400 border border-slate-700'
+            }`}
+          >
+            {balanceado ? 'Ativado (Potes)' : 'Desativado (Cego)'}
+          </button>
+        </div>
+      )}
+
       {erro && (
         <div className="mb-6 p-4 bg-rose-500/20 border border-rose-500/50 rounded-lg text-rose-300 text-sm text-center font-semibold">
           {erro}
         </div>
       )}
 
-      {/* ABA 1: MODO ALEATÓRIO (Duas colunas: Jogadores vs Times) */}
       {modoEntrada === 'aleatorio' ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Coluna da Esquerda: Jogadores */}
           <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/60">
             <h3 className="text-sm font-bold uppercase text-emerald-400 mb-3">
               1. Lista de Jogadores ({jogadores.length})
             </h3>
-            <form onSubmit={adicionarJogador} className="flex gap-2 mb-4">
-              <input
-                type="text"
-                value={inputJogador}
-                onChange={(e) => setInputJogador(e.target.value)}
-                placeholder="Nome do Jogador"
-                className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-              />
+            <form onSubmit={adicionarJogador} className="flex flex-col gap-2 mb-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={inputJogador}
+                  onChange={(e) => setInputJogador(e.target.value)}
+                  placeholder="Nome do Jogador"
+                  className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                />
+                <select
+                  value={inputNivel}
+                  onChange={(e) => setInputNivel(e.target.value)}
+                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 text-xs font-bold text-emerald-400 focus:outline-none"
+                >
+                  <option value="Ouro">Ouro</option>
+                  <option value="Prata">Prata</option>
+                  <option value="Bronze">Bronze</option>
+                </select>
+              </div>
               <button
                 type="submit"
-                className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold px-4 rounded-lg text-sm"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-bold py-2 rounded-lg text-xs uppercase"
               >
-                +
+                Adicionar Jogador
               </button>
             </form>
 
@@ -218,7 +239,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                   key={idx}
                   className="bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-xs font-medium text-slate-200 flex items-center gap-2"
                 >
-                  {j.nome}
+                  {j.nome} <span className="text-[10px] text-emerald-400 font-bold">({j.nivel})</span>
                   <button
                     onClick={() => removerJogador(idx)}
                     className="text-rose-400 hover:text-rose-300 font-bold"
@@ -230,7 +251,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
             </div>
           </div>
 
-          {/* Coluna da Direita: Times Disponíveis */}
           <div className="bg-slate-900/60 p-4 rounded-xl border border-slate-700/60">
             <h3 className="text-sm font-bold uppercase text-emerald-400 mb-3">
               2. Times Disponíveis ({times.length})
@@ -270,7 +290,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           </div>
         </div>
       ) : (
-        /* ABA 2: MODO MANUAL (Times pré-definidos via pares) */
         <div className="bg-slate-900/60 p-6 rounded-xl border border-slate-700/60">
           <h3 className="text-sm font-bold uppercase text-emerald-400 mb-4">
             Vincular Jogador/Dupla ao Clube
@@ -298,7 +317,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
             </button>
           </form>
 
-          {/* Tabela de Pares Manuais Cadastrados */}
           <div className="space-y-2">
             {paresManuais.length === 0 ? (
               <p className="text-xs text-slate-500 text-center py-4">
@@ -328,7 +346,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
         </div>
       )}
 
-      {/* BOTÃO DE AÇÃO PRINCIPAL */}
       <div className="mt-8 pt-6 border-t border-slate-700 flex justify-end">
         <button
           type="button"

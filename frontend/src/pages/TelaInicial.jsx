@@ -109,7 +109,7 @@ export default function TelaInicial({ onTorneioAcessado }) {
               required
               value={nomeOuId}
               onChange={(e) => setNomeOuId(e.target.value)}
-              placeholder="Ex: Copa da Galera 2026"
+              placeholder="Ex: MasterLeague"
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
             />
           </div>

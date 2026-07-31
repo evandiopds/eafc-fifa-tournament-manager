@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 
 from matchmaking import sortear_duplas, sortear_times, gerar_chaveamento_aleatorio
-from validators import validar_quantidade_times
+from validators import validar_quantidade_times, validar_id_torneio, validar_senha_torneio
 
 import database
 
@@ -78,6 +78,7 @@ class SorteioRequest(BaseModel):
     modo: str = "duplas"           
     formato_torneio: str = "mata_mata" 
     balanceado: bool = True
+    manual: bool = False
 
 class TorneioCreate(BaseModel):
     nome: str
@@ -110,12 +111,19 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
     if not validacao["valido"]:
         raise HTTPException(status_code=400, detail=validacao["mensagem"])
         
-    if payload.modo == "solo":
-        participantes = [j["nome"] for j in lista_jogadores]
+    if payload.manual:
+        participantes_com_times = [
+            {"participantes": j["nome"], "time": t}
+            for j, t in zip(lista_jogadores, payload.times)
+        ]
     else:
-        participantes = sortear_duplas(lista_jogadores, balanceado=payload.balanceado)
-        
-    participantes_com_times = sortear_times(participantes, payload.times)
+        if payload.modo == "solo":
+            participantes = [j["nome"] for j in lista_jogadores]
+        else:
+            participantes = sortear_duplas(lista_jogadores, balanceado=payload.balanceado)
+            
+        participantes_com_times = sortear_times(participantes, payload.times)
+
     chaveamento = gerar_chaveamento_aleatorio(participantes_com_times, payload.formato_torneio)
 
     if payload.torneio_id:
@@ -141,7 +149,6 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
             db.commit()
             db.refresh(novo_part)
             
-            # Guarda o ID real do banco usando o nome do time como chave
             mapa_participantes[item["time"]] = novo_part.id
 
         confrontos = (
@@ -166,6 +173,7 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
         
         db.commit()
 
+    # 3. RETORNO OBRIGATÓRIO PARA O FRONT-END RENDERIZAR A TELA
     return {
         "status": "sucesso",
         "modo": payload.modo,
@@ -178,6 +186,14 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
 
 @app.post("/api/torneios", status_code=201)
 def criar_torneio(torneio: TorneioCreate, db: Session = Depends(get_db)):
+    val_id = validar_id_torneio(torneio.nome)
+    if not val_id["valido"]:
+        raise HTTPException(status_code=400, detail=val_id["mensagem"])
+
+    val_senha = validar_senha_torneio(torneio.senha)
+    if not val_senha["valido"]:
+        raise HTTPException(status_code=400, detail=val_senha["mensagem"])
+
     torneio_existente = db.query(database.Torneio).filter(database.Torneio.nome == torneio.nome).first()
     if torneio_existente:
         raise HTTPException(status_code=400, detail="Esse nome de torneio já está em uso! Escolha outro.")
