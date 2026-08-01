@@ -5,7 +5,6 @@ import Chaveamento from './components/Chaveamento';
 
 export default function App() {
   const [torneioAtivo, setTorneioAtivo] = useState(null);
-  
   const [dadosSorteados, setDadosSorteados] = useState(null);
 
   const handleTrocarTorneio = () => {
@@ -18,8 +17,18 @@ export default function App() {
       {/* 1. SE NÃO TIVER TORNEIO ATIVO -> EXIBE A TELA INICIAL */}
       {!torneioAtivo ? (
         <TelaInicial
-          onTorneioAcessado={(dadosTorneio) => {
+          onTorneioAcessado={(respostaAcesso) => {
+            // Se a API retornar o objeto aninhado .torneio, usamos ele; se não, usamos direto a resposta
+            const dadosTorneio = respostaAcesso.torneio || respostaAcesso;
             setTorneioAtivo(dadosTorneio);
+
+            // TASK #37: Se o torneio acessado já possuir chaveamento salvo, carrega automaticamente!
+            if (respostaAcesso.dados_sorteados) {
+              console.log("📂 Chaveamento existente carregado do Back-End:", respostaAcesso.dados_sorteados);
+              setDadosSorteados(respostaAcesso.dados_sorteados);
+            } else {
+              setDadosSorteados(null);
+            }
           }}
         />
       ) : (
@@ -42,7 +51,7 @@ export default function App() {
             </button>
           </div>
 
-          {/* 2. SE NÃO GEROU O CHAVEAMENTO AINDA -> EXIBE O FLUXO DE PARTICIPANTES */}
+          {/* 2. SE NÃO GEROU/ENCONTROU O CHAVEAMENTO -> EXIBE O FLUXO DE PARTICIPANTES */}
           {!dadosSorteados ? (
             <FluxoParticipantes
               torneio={torneioAtivo}
@@ -52,7 +61,7 @@ export default function App() {
               }}
             />
           ) : (
-            /* 3. QUANDO GERAR -> MOSTRA O CHAVEAMENTO DO TORNEIO */
+            /* 3. SE EXISTIR -> MOSTRA O CHAVEAMENTO DO TORNEIO */
             <Chaveamento 
               torneio={torneioAtivo} 
               dadosSorteados={dadosSorteados} 

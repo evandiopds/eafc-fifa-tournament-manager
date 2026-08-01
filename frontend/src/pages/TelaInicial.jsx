@@ -39,7 +39,8 @@ export default function TelaInicial({ onTorneioAcessado }) {
         senha: senha
       });
 
-      onTorneioAcessado(resposta.data.torneio);
+      // CORREÇÃO: Enviamos o pacote completo (resposta.data) com torneio + dados_sorteados
+      onTorneioAcessado(resposta.data);
     } catch (err) {
       setErro(
         err.response?.data?.detail || 'Não foi possível acessar. Verifique o Nome/ID e a senha.'
@@ -66,7 +67,8 @@ export default function TelaInicial({ onTorneioAcessado }) {
         senha: senha
       });
 
-      onTorneioAcessado(acesso.data.torneio);
+      // CORREÇÃO: Enviamos o pacote completo (acesso.data) para padronizar a resposta
+      onTorneioAcessado(acesso.data);
     } catch (err) {
       setErro(
         err.response?.data?.detail || 'Erro ao criar torneio. Tente outro nome ou verifique os dados.'

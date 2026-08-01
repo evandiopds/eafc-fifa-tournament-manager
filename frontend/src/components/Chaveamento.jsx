@@ -7,6 +7,7 @@ import TabelaClassificacao from './TabelaClassificacao';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
+// Retorna o escudo do time ou o ícone padrão
 function getEscudo(nomeTime) {
   if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') {
     return escudoOff || escudoGen;
@@ -20,7 +21,7 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
-// Card individual da partida na Árvore
+// Card de jogo individual para envio de placar
 function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
@@ -81,9 +82,8 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
 
       setStatusMsg({ erro: false, texto: 'Salvo!' });
 
-      // Atualiza a tabela de classificação em tempo real se retornada pelo backend
-      if (resp.data?.classificacao && onPlacarSalvo) {
-        onPlacarSalvo(resp.data.classificacao);
+      if (onPlacarSalvo) {
+        onPlacarSalvo(resp.data);
       }
     } catch (err) {
       setStatusMsg({
@@ -115,7 +115,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         isAguardando ? 'border-slate-700/50 bg-slate-900/40 opacity-75' : 'border-slate-700 hover:border-slate-500'
       }`}
     >
-      {/* Mandante */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <img
@@ -145,7 +144,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         />
       </div>
 
-      {/* Visitante */}
       <div className="flex items-center justify-between gap-2 pt-0.5">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <img
@@ -175,7 +173,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         />
       </div>
 
-      {/* Botão de salvar placar condicional */}
       {!isAguardando && (
         <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-700/40">
           {empatadoNoMataMata ? (
@@ -220,13 +217,19 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   );
 }
 
+// Renderiza o formato correspondente ao torneio ativo
 export default function Chaveamento({ torneio, dadosSorteados }) {
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
-  
-  // Guardamos apenas atualizações feitas ao salvar placares na tela
-  const [tabelaAtualizada, setTabelaAtualizada] = useState(null);
+  const [dadosTorneio, setDadosTorneio] = useState(dadosSorteados);
+  const [prevSorteados, setPrevSorteados] = useState(dadosSorteados);
 
-  if (!dadosSorteados || !dadosSorteados.chaveamento) {
+  // Sincroniza o estado de forma síncrona sem disparar efeitos em cascata
+  if (dadosSorteados !== prevSorteados) {
+    setPrevSorteados(dadosSorteados);
+    setDadosTorneio(dadosSorteados);
+  }
+
+  if (!dadosTorneio || !dadosTorneio.chaveamento) {
     return (
       <div className="w-full text-center py-12 bg-slate-800/60 rounded-2xl border border-slate-700">
         <p className="text-slate-400">
@@ -236,18 +239,16 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   }
 
-  const { formato_torneio, chaveamento } = dadosSorteados;
+  const { formato_torneio, chaveamento, classificacao = [] } = dadosTorneio;
 
-  // A tabela exibida será a atualizada em tempo real (se existir), ou a inicial do chaveamento
-  const classificacao =
-    tabelaAtualizada ||
-    chaveamento?.classificacao ||
-    dadosSorteados?.classificacao ||
-    [];
-
-  const handleAtualizarClassificacao = (novaClassificacao) => {
-    if (novaClassificacao && Array.isArray(novaClassificacao)) {
-      setTabelaAtualizada(novaClassificacao);
+  const handleAtualizarDados = (respostaApi) => {
+    if (respostaApi?.dados_sorteados) {
+      setDadosTorneio(respostaApi.dados_sorteados);
+    } else if (respostaApi?.classificacao) {
+      setDadosTorneio((prev) => ({
+        ...prev,
+        classificacao: respostaApi.classificacao,
+      }));
     }
   };
 
@@ -271,13 +272,13 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
               <div className="p-4 space-y-3">
                 {grupos[nomeGrupo].map((item, idx) => (
                   <CardPartida 
-                    key={idx} 
+                    key={`${item.id || idx}-${item.gols_casa}-${item.gols_visitante}`} 
                     idx={idx} 
                     jogo={item} 
                     formato={formato_torneio} 
                     rodadaOuFase={nomeGrupo}
                     torneioId={torneio?.id}
-                    onPlacarSalvo={handleAtualizarClassificacao}
+                    onPlacarSalvo={handleAtualizarDados}
                   />
                 ))}
               </div>
@@ -285,7 +286,6 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           ))}
         </div>
 
-        {/* Tabela de Classificação da Copa */}
         <TabelaClassificacao classificacao={classificacao} />
       </div>
     );
@@ -323,18 +323,17 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
         <div className="space-y-3">
           {jogosRodada.map((jogo, idx) => (
             <CardPartida 
-              key={idx} 
+              key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`} 
               idx={idx} 
               jogo={jogo} 
               formato={formato_torneio} 
               rodadaOuFase={`Rodada ${jogo.rodada}`}
               torneioId={torneio?.id}
-              onPlacarSalvo={handleAtualizarClassificacao}
+              onPlacarSalvo={handleAtualizarDados}
             />
           ))}
         </div>
 
-        {/* TASK #39: Componente TabelaClassificacao logo abaixo dos confrontos da rodada */}
         <TabelaClassificacao classificacao={classificacao} />
       </div>
     );
@@ -350,13 +349,13 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
         <div className="space-y-4">
           {confrontos.map((jogo, idx) => (
             <CardPartida 
-              key={idx} 
+              key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`} 
               idx={idx} 
               jogo={jogo} 
               formato={formato_torneio} 
               rodadaOuFase="Mata-Mata"
               torneioId={torneio?.id}
-              onPlacarSalvo={handleAtualizarClassificacao}
+              onPlacarSalvo={handleAtualizarDados}
             />
           ))}
         </div>
@@ -387,13 +386,13 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                 <div className="flex flex-col justify-around flex-1 gap-6">
                   {arvore[nomeFase].map((jogo, idx) => (
                     <CardPartida
-                      key={idx}
+                      key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
                       idx={idx}
                       jogo={jogo}
                       formato={formato_torneio}
                       rodadaOuFase={nomeFase}
                       torneioId={torneio?.id}
-                      onPlacarSalvo={handleAtualizarClassificacao}
+                      onPlacarSalvo={handleAtualizarDados}
                     />
                   ))}
                 </div>
