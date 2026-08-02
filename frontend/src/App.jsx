@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Minimize2 } from 'lucide-react';
 import TelaInicial from './pages/TelaInicial';
 import FluxoParticipantes from './components/FluxoParticipantes';
 import Chaveamento from './components/Chaveamento';
@@ -45,9 +46,11 @@ export default function App() {
             </div>
             <button
               onClick={handleTrocarTorneio}
-              className="text-xs bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg font-semibold text-slate-200 transition-colors"
+              className="flex items-center gap-1.5 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg font-bold text-slate-200 hover:text-white transition-all shadow-sm"
+              title="Sair / Trocar Torneio"
             >
-              Trocar Torneio
+              <Minimize2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <span>SAIR</span>
             </button>
           </div>
 
@@ -59,6 +62,7 @@ export default function App() {
                 console.log("🎲 Sorteio gerado pelo Back-End:", resultadoBackend);
                 setDadosSorteados(resultadoBackend);
               }}
+              onSair={handleTrocarTorneio}
             />
           ) : (
             /* 3. SE EXISTIR -> MOSTRA O CHAVEAMENTO DO TORNEIO */

@@ -1,3 +1,4 @@
+import { Dices, PencilLine, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import axios from 'axios';
 
@@ -91,7 +92,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           times: times,
           modo: modoJogo,
           formato_torneio: formatoTorneio,
-          balanceado: balanceado,
+          balanceado: modoJogo === 'duplas' ? balanceado : false,
           manual: false
         };
       } else {
@@ -162,7 +163,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
       <div className="bg-slate-900/80 border border-slate-700 px-5 py-4 rounded-xl mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <p className="text-sm font-bold text-white">Formato da Competição</p>
-          <p className="text-xs text-slate-400">Você pode corrigir a modalidade antes de gerar a tabela</p>
+          <p className="text-xs text-slate-400">Certifique-se de que está utilizando o formato correto antes de gerar a tabela.</p>
         </div>
         <div className="flex bg-slate-800 p-1 rounded-lg border border-slate-700">
           <button
@@ -174,7 +175,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Mata-Mata
+            MATA-MATA
           </button>
           <button
             type="button"
@@ -185,7 +186,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Modo Copa
+            MODO COPA
           </button>
           <button
             type="button"
@@ -196,7 +197,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                 : 'text-slate-400 hover:text-white'
             }`}
           >
-            Pontos Corridos
+            PONTOS CORRIDOS
           </button>
         </div>
       </div>
@@ -205,28 +206,31 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
         <button
           type="button"
           onClick={() => setModoEntrada('aleatorio')}
-          className={`flex-1 py-3 text-xs font-extrabold uppercase tracking-wider rounded-lg border transition-all ${
+          className={`flex-1 py-3 px-4 text-xs font-extrabold uppercase tracking-wider rounded-lg border transition-all flex items-center justify-center gap-2 ${
             modoEntrada === 'aleatorio'
               ? 'bg-slate-700 border-emerald-500 text-white'
               : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
           }`}
         >
-          🎲 Modo Aleatório (Sortear Membros)
+          <Dices className="w-4 h-4 shrink-0 text-emerald-400" />
+          <span>Modo Aleatório (Sortear Membros)</span>
         </button>
         <button
           type="button"
           onClick={() => setModoEntrada('manual')}
-          className={`flex-1 py-3 text-xs font-extrabold uppercase tracking-wider rounded-lg border transition-all ${
+          className={`flex-1 py-3 px-4 text-xs font-extrabold uppercase tracking-wider rounded-lg border transition-all flex items-center justify-center gap-2 ${
             modoEntrada === 'manual'
               ? 'bg-slate-700 border-emerald-500 text-white'
               : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
           }`}
         >
-          ✍️ Modo Manual (Times Pré-Definidos)
+          <PencilLine className="w-4 h-4 shrink-0 text-emerald-400" />
+          <span>Modo Manual (Times Pré-Definidos)</span>
         </button>
       </div>
 
-      {modoEntrada === 'aleatorio' && (
+      {/* Painel de Potes exibido apenas se estiver em Modo Aleatório E em Duplas */}
+      {modoEntrada === 'aleatorio' && modoJogo === 'duplas' && (
         <div className="flex items-center justify-between bg-slate-900/80 border border-slate-700 px-5 py-3 rounded-xl mb-6">
           <div>
             <p className="text-sm font-bold text-white">Sorteio Balanceado por Potes (Ouro / Prata / Bronze)</p>
@@ -267,15 +271,18 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                   placeholder="Nome do Jogador"
                   className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
                 />
-                <select
-                  value={inputNivel}
-                  onChange={(e) => setInputNivel(e.target.value)}
-                  className="bg-slate-900 border border-slate-700 rounded-lg px-2 text-xs font-bold text-emerald-400 focus:outline-none"
-                >
-                  <option value="Ouro">Ouro</option>
-                  <option value="Prata">Prata</option>
-                  <option value="Bronze">Bronze</option>
-                </select>
+                {/* Seletor de Nível visível APENAS no Modo Duplas */}
+                {modoJogo === 'duplas' && (
+                  <select
+                    value={inputNivel}
+                    onChange={(e) => setInputNivel(e.target.value)}
+                    className="bg-slate-900 border border-slate-700 rounded-lg px-2 text-xs font-bold text-emerald-400 focus:outline-none"
+                  >
+                    <option value="Ouro">Ouro</option>
+                    <option value="Prata">Prata</option>
+                    <option value="Bronze">Bronze</option>
+                  </select>
+                )}
               </div>
               <button
                 type="submit"
@@ -289,14 +296,20 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
               {jogadores.map((j, idx) => (
                 <span
                   key={idx}
-                  className="bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-xs font-medium text-slate-200 flex items-center gap-2"
+                  className="bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-xs font-medium text-slate-200 flex items-center gap-1.5"
                 >
-                  {j.nome} <span className="text-[10px] text-emerald-400 font-bold">({j.nivel})</span>
+                  {j.nome}
+                  {/* Pote/Nível exibido na etiqueta APENAS em Modo Duplas */}
+                  {modoJogo === 'duplas' && (
+                    <span className="text-[10px] text-emerald-400 font-bold">({j.nivel})</span>
+                  )}
                   <button
+                    type="button"
                     onClick={() => removerJogador(idx)}
-                    className="text-rose-400 hover:text-rose-300 font-bold"
+                    className="text-rose-400 hover:text-rose-300 font-bold ml-1 transition-colors"
+                    title="Remover jogador"
                   >
-                    ×
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
                   </button>
                 </span>
               ))}
@@ -327,14 +340,16 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
               {times.map((t, idx) => (
                 <span
                   key={idx}
-                  className="bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-xs font-medium text-slate-200 flex items-center gap-2"
+                  className="bg-slate-800 border border-slate-700 px-3 py-1 rounded-full text-xs font-medium text-slate-200 flex items-center gap-1.5"
                 >
                   {t}
                   <button
+                    type="button"
                     onClick={() => removerTime(idx)}
-                    className="text-rose-400 hover:text-rose-300 font-bold"
+                    className="text-rose-400 hover:text-rose-300 font-bold ml-1 transition-colors"
+                    title="Remover time"
                   >
-                    ×
+                    <Trash2 className="w-3.5 h-3.5 shrink-0" />
                   </button>
                 </span>
               ))}
@@ -386,10 +401,12 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                     <span className="text-emerald-400 font-semibold">{par.time}</span>
                   </div>
                   <button
+                    type="button"
                     onClick={() => removerParManual(idx)}
-                    className="text-rose-400 hover:text-rose-300 font-bold text-base px-2"
+                    className="text-rose-400 hover:text-rose-300 transition-colors p-1"
+                    title="Remover par"
                   >
-                    ×
+                    <Trash2 className="w-4 h-4 shrink-0" />
                   </button>
                 </div>
               ))
@@ -405,7 +422,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           onClick={handleGerarTorneio}
           className="w-full md:w-auto bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-black uppercase text-sm px-8 py-4 rounded-xl tracking-wider transition-all shadow-lg shadow-emerald-500/20"
         >
-          {carregando ? 'GERANDO TABELAS...' : 'GERAR TABELAS / CHAVEAMENTO →'}
+          {carregando ? 'GERANDO TABELAS...' : 'GERAR TABELAS / CHAVEAMENTO'}
         </button>
       </div>
     </div>

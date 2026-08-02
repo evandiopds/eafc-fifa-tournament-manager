@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { Trophy, CircleStar, LockKeyhole, FilePen, FileCheck } from 'lucide-react';
 import { buscarTime } from '../utils/teamSearch';
 import escudoGen from '../assets/escudo_gen.svg';
 import escudoOff from '../assets/escudo_off.svg';
+import whistleIcon from '../assets/whistle.svg';
+import penaltyIcon from '../assets/penalty.svg';
 import TabelaClassificacao from './TabelaClassificacao';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
-// Retorna o escudo do time ou o ícone padrão
+// Busca e retorna o escudo oficial do time ou o ícone padrão
 function getEscudo(nomeTime) {
   if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') {
     return escudoOff || escudoGen;
@@ -21,12 +24,14 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
-// Card de jogo individual com suporte a placar, W.O. rápido e bloqueio por fase
-function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado }) {
+// Card individual da partida com suporte a edição de placar, pênaltis e W.O.
+function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado, isEliminatorio = false }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
   const [penCasa, setPenCasa] = useState(jogo.penaltis_casa ?? '');
   const [penVisitante, setPenVisitante] = useState(jogo.penaltis_visitante ?? '');
+  
+  const [emModoEdicao, setEmModoEdicao] = useState(false);
   const [statusMsg, setStatusMsg] = useState(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -41,13 +46,17 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     setter(apenasNumeros);
   };
 
+  // Identifica se o confronto é eliminatório (mata-mata puro ou fase eliminatória da copa)
+  const ehMataMata = isEliminatorio || formato === 'mata_mata';
+
   const empatadoNoMataMata =
     !isAguardando &&
-    formato === 'mata_mata' &&
+    ehMataMata &&
     golsCasa !== '' &&
     golsVisitante !== '' &&
     Number(golsCasa) === Number(golsVisitante);
 
+  // Envia o placar atualizado para a API no back-end
   const salvarNoBackend = async (casaGols, foraGols, casaPen = null, foraPen = null) => {
     setCarregando(true);
     setStatusMsg(null);
@@ -65,6 +74,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
       });
 
       setStatusMsg({ erro: false, texto: 'Salvo!' });
+      setEmModoEdicao(false); // Fecha o modo de edição ao salvar com sucesso
       if (onPlacarSalvo) onPlacarSalvo(resp.data);
     } catch (err) {
       setStatusMsg({
@@ -76,6 +86,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     }
   };
 
+  // Valida regras de empate/pênaltis antes de salvar o placar
   const handleSalvarPlacar = () => {
     if (bloqueado) return;
 
@@ -87,7 +98,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     const finalGolsCasa = Number(golsCasa);
     const finalGolsVisitante = Number(golsVisitante);
 
-    if (formato === 'mata_mata' && finalGolsCasa === finalGolsVisitante) {
+    if (ehMataMata && finalGolsCasa === finalGolsVisitante) {
       if (penCasa === '' || penVisitante === '') {
         setStatusMsg({ erro: true, texto: 'Empate exige pênaltis!' });
         return;
@@ -102,7 +113,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     );
   };
 
-  // Botão Rápido de W.O. (1x0 para Casa ou 0x1 para Fora)
+  // Aplica vitória rápida por W.O. (1x0 ou 0x1)
   const handleWO = (vencedor) => {
     if (bloqueado) return;
     const gCasa = vencedor === 'casa' ? 1 : 0;
@@ -132,6 +143,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         bloqueado ? 'border-slate-700/50 bg-slate-900/40 opacity-75' : 'border-slate-700 hover:border-slate-500'
       }`}
     >
+      {/* Time da Casa */}
       <div className="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <img
@@ -153,7 +165,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         <input
           type="text"
           inputMode="numeric"
-          disabled={bloqueado}
+          disabled={bloqueado || !emModoEdicao}
           value={golsCasa}
           onChange={(e) => handleNumeroChange(setGolsCasa, e.target.value)}
           placeholder="-"
@@ -161,6 +173,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         />
       </div>
 
+      {/* Time Visitante */}
       <div className="flex items-center justify-between gap-2 pt-0.5">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <img
@@ -182,7 +195,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         <input
           type="text"
           inputMode="numeric"
-          disabled={bloqueado}
+          disabled={bloqueado || !emModoEdicao}
           value={golsVisitante}
           onChange={(e) => handleNumeroChange(setGolsVisitante, e.target.value)}
           placeholder="-"
@@ -190,54 +203,74 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         />
       </div>
 
+      {/* Ações do Card (Editar Placar, W.O., Pênaltis e Salvar) */}
       {!bloqueado && (
         <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-slate-700/40">
           <div className="flex items-center justify-between">
-            {empatadoNoMataMata ? (
-              <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
-                <span>Pênaltis:</span>
-                <input
-                  type="text"
-                  value={penCasa}
-                  onChange={(e) => handleNumeroChange(setPenCasa, e.target.value)}
-                  className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
-                />
-                <span>×</span>
-                <input
-                  type="text"
-                  value={penVisitante}
-                  onChange={(e) => handleNumeroChange(setPenVisitante, e.target.value)}
-                  className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
-                />
-              </div>
-            ) : (
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  onClick={() => handleWO('casa')}
-                  className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded"
-                  title="Vitória por W.O. (1x0)"
-                >
-                  W.O. Casa
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleWO('fora')}
-                  className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded"
-                  title="Vitória por W.O. (0x1)"
-                >
-                  W.O. Fora
-                </button>
-              </div>
-            )}
+            {emModoEdicao ? (
+              <>
+                {empatadoNoMataMata ? (
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
+                    <img src={penaltyIcon} alt="Pênalti" className="w-3.5 h-3.5 shrink-0" />
+                    <span>Pên:</span>
+                    <input
+                      type="text"
+                      value={penCasa}
+                      onChange={(e) => handleNumeroChange(setPenCasa, e.target.value)}
+                      className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
+                    />
+                    <span>×</span>
+                    <input
+                      type="text"
+                      value={penVisitante}
+                      onChange={(e) => handleNumeroChange(setPenVisitante, e.target.value)}
+                      className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleWO('casa')}
+                      className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded"
+                      title="Vitória por W.O. (1x0)"
+                    >
+                      W.O. Casa
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleWO('fora')}
+                      className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded"
+                      title="Vitória por W.O. (0x1)"
+                    >
+                      W.O. Fora
+                    </button>
+                  </div>
+                )}
 
-            <button
-              onClick={handleSalvarPlacar}
-              disabled={carregando}
-              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-3 py-1 rounded text-[11px] font-black uppercase transition-all shadow-sm ml-auto"
-            >
-              {carregando ? '...' : 'Salvar ✓'}
-            </button>
+                <button
+                  type="button"
+                  onClick={handleSalvarPlacar}
+                  disabled={carregando}
+                  className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-2.5 py-1 rounded text-[11px] font-black uppercase transition-all shadow-sm ml-auto"
+                >
+                  <FileCheck className="w-3.5 h-3.5 shrink-0" />
+                  <span>{carregando ? '...' : 'Salvar'}</span>
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusMsg(null);
+                  setEmModoEdicao(true);
+                }}
+                className="flex items-center justify-center gap-1.5 w-full bg-slate-700 hover:bg-slate-600 text-slate-200 py-1.5 rounded text-[11px] font-bold uppercase transition-all"
+              >
+                <FilePen className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
+                <span>Editar Placar</span>
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -251,14 +284,12 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   );
 }
 
-// Componente Principal de Renderização do Torneio
+// Componente principal que gerencia e renderiza o chaveamento do torneio
 export default function Chaveamento({ torneio, dadosSorteados }) {
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
   const [dadosTorneio, setDadosTorneio] = useState(dadosSorteados);
   const [prevSorteados, setPrevSorteados] = useState(dadosSorteados);
   const [statusTorneio, setStatusTorneio] = useState(torneio?.status || 'ativo');
-  
-  // Controle de aba ativa no modo Copa: 'grupos' ou 'mata_mata'
   const [abaCopa, setAbaCopa] = useState('grupos');
 
   if (dadosSorteados !== prevSorteados) {
@@ -279,6 +310,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
   const { formato_torneio, chaveamento, classificacao = [] } = dadosTorneio;
   const isFinalizado = statusTorneio === 'finalizado';
 
+  // Atualiza o estado local ao receber novos dados da API
   const handleAtualizarDados = (respostaApi) => {
     if (respostaApi?.dados_sorteados) {
       setDadosTorneio(respostaApi.dados_sorteados);
@@ -290,7 +322,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     }
   };
 
-  // Aciona a rota de finalizar: avança da Fase de Grupos para o Mata-Mata na Copa ou encerra o torneio
+  // Encerra a etapa atual ou finaliza o torneio no back-end
   const handleFinalizar = async () => {
     const textoConfirmacao =
       formato_torneio === 'copa' && statusTorneio === 'fase_grupos'
@@ -304,7 +336,6 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
       const novoStatus = resp.data?.novo_status || 'finalizado';
       setStatusTorneio(novoStatus);
 
-      // Atualiza os dados locais imediatamente ao receber a resposta do servidor
       if (resp.data?.dados_sorteados) {
         setDadosTorneio(resp.data.dados_sorteados);
       }
@@ -317,10 +348,10 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     }
   };
 
-  // Renderização da Árvore Eliminatória
+  // Processa e desenha a árvore de confrontos eliminatórios
   const renderArvoreEliminatoria = (arvoreDados, isBloqueadoPorFase = false) => {
-    // 1. Agrupa 'Final' e 'Terceiro Lugar' na coluna chamada 'Decisões'
     const arvoreProcessada = {};
+    
     Object.keys(arvoreDados || {}).forEach((fase) => {
       if (
         fase === 'Final' ||
@@ -337,7 +368,6 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
       }
     });
 
-    // 2. Garante que a Final fique em primeiro e o Terceiro Lugar em segundo
     if (arvoreProcessada['Decisões']) {
       arvoreProcessada['Decisões'].sort((a, b) => {
         if (a.fase === 'Final') return -1;
@@ -361,14 +391,12 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
         <div className="flex items-stretch justify-start md:justify-center gap-8 min-w-max px-4">
           {fases.map((nomeFase) => (
             <div key={nomeFase} className="flex flex-col justify-around gap-6 relative">
-              {/* Título da Coluna */}
               <div className="text-center pb-2 border-b border-slate-700/80 mb-2">
                 <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
                   {nomeFase === 'Decisões' ? 'Decisões' : nomeFase}
                 </span>
               </div>
 
-              {/* Container das partidas da coluna */}
               <div
                 className={`flex flex-col flex-1 ${
                   nomeFase === 'Decisões' ? 'justify-between py-2' : 'justify-around gap-6'
@@ -389,16 +417,25 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                           : ''
                       }`}
                     >
-                      {/* Cabeçalho superior colado no card na coluna de DECISÕES */}
                       {(isFinal || isTerceiro) && (
                         <span
-                          className={`text-[11px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full border ${
+                          className={`flex flex-row items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
                             isFinal
                               ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-sm'
                               : 'bg-slate-800/80 border-slate-700 text-slate-400 text-[10px]'
                           }`}
                         >
-                          {isFinal ? '🏆 FINAL' : '🥉 TERCEIRO LUGAR'}
+                          {isFinal ? (
+                            <>
+                              <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                              <span>FINAL</span>
+                            </>
+                          ) : (
+                            <>
+                              <CircleStar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                              <span>TERCEIRO LUGAR</span>
+                            </>
+                          )}
                         </span>
                       )}
 
@@ -410,6 +447,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                         torneioId={torneio?.id}
                         onPlacarSalvo={handleAtualizarDados}
                         isBloqueado={isFinalizado || isBloqueadoPorFase}
+                        isEliminatorio={true}
                       />
                     </div>
                   );
@@ -422,6 +460,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   };
 
+  // Renderiza a estrutura do Modo Copa (Fase de Grupos + Chaveamento)
   const renderCopa = () => {
     const grupos = chaveamento.grupos || {};
     const arvoreMataMata = chaveamento.arvore || {};
@@ -430,7 +469,6 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
 
     return (
       <div className="space-y-8">
-        {/* Seletor de Abas: Fase de Grupos | Mata-Mata */}
         <div className="flex justify-center border-b border-slate-700 pb-4">
           <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
             <button
@@ -447,13 +485,14 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
             <button
               type="button"
               onClick={() => setAbaCopa('mata_mata')}
-              className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+              className={`flex items-center justify-center gap-1.5 px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
                 abaCopa === 'mata_mata'
                   ? 'bg-emerald-500 text-slate-950 shadow-md'
                   : 'text-slate-400 hover:text-white'
               }`}
             >
-              Mata-Mata {inFaseGrupos && '🔒'}
+              <span>Mata-Mata</span>
+              {inFaseGrupos && <LockKeyhole className="w-3.5 h-3.5 shrink-0" />}
             </button>
           </div>
         </div>
@@ -482,6 +521,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                           torneioId={torneio?.id}
                           onPlacarSalvo={handleAtualizarDados}
                           isBloqueado={!inFaseGrupos || isFinalizado}
+                          isEliminatorio={false}
                         />
                       ))}
                     </div>
@@ -508,6 +548,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   };
 
+  // Renderiza a tabela e rodadas de Pontos Corridos
   const renderPontosCorridos = () => {
     const tabela = chaveamento.tabela || [];
     const totalRodadas = chaveamento.total_rodadas || 1;
@@ -548,6 +589,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
               torneioId={torneio?.id}
               onPlacarSalvo={handleAtualizarDados}
               isBloqueado={isFinalizado}
+              isEliminatorio={false}
             />
           ))}
         </div>
@@ -563,16 +605,19 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
       {formato_torneio === 'pontos_corridos' && renderPontosCorridos()}
       {formato_torneio === 'mata_mata' && renderArvoreEliminatoria(chaveamento.arvore, isFinalizado)}
 
-      {/* Botão de Encerramento de Etapa/Torneio */}
+      {/* Botão para finalizar fase ou encerrar o torneio com ícone de apito */}
       {!isFinalizado ? (
         <div className="flex justify-center pt-4 border-t border-slate-700/60">
           <button
             onClick={handleFinalizar}
-            className="bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider px-6 py-3 rounded-xl shadow-lg transition-all"
+            className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider px-6 py-3 rounded-xl shadow-lg transition-all"
           >
-            {formato_torneio === 'copa' && statusTorneio === 'fase_grupos'
-              ? 'Finalizar Fase de Grupos →'
-              : 'Finalizar Torneio ✓'}
+            <img src={whistleIcon} alt="Apito" className="w-4 h-4 shrink-0" />
+            <span>
+              {formato_torneio === 'copa' && statusTorneio === 'fase_grupos'
+                ? 'Finalizar Fase de Grupos'
+                : 'Finalizar Torneio'}
+            </span>
           </button>
         </div>
       ) : (

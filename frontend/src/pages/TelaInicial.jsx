@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 const API_URL = 'http://127.0.0.1:8000/api';
@@ -23,6 +24,7 @@ export default function TelaInicial({ onTorneioAcessado }) {
 
   const [nomeOuId, setNomeOuId] = useState('');
   const [senha, setSenha] = useState('');
+  const [mostrarSenha, setMostrarSenha] = useState(false);
   const [formato, setFormato] = useState('mata_mata');
   
   const [carregando, setCarregando] = useState(false);
@@ -83,11 +85,11 @@ export default function TelaInicial({ onTorneioAcessado }) {
       {/* Cabeçalho */}
       <div className="text-center mb-8">
         <h1 className="text-3xl font-extrabold text-white tracking-wider">
-          EAFC <span className="text-emerald-400">MANAGER</span>
+          E-FUT <span className="text-emerald-400">MANAGER</span>
         </h1>
         <p className="text-slate-400 text-sm mt-1">
           {abaAtual === 'acessar'
-            ? 'Acesse seu torneio para gerenciar jogos e tabelas'
+            ? 'Organize e gerencie seus torneios no FIFA, eFootball e mais.'
             : 'Configure um novo torneio para começar'}
         </p>
       </div>
@@ -104,14 +106,14 @@ export default function TelaInicial({ onTorneioAcessado }) {
         <form onSubmit={handleAcessar} className="space-y-5">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Nome ou ID do Torneio
+              Nome do Torneio
             </label>
             <input
               type="text"
               required
               value={nomeOuId}
               onChange={(e) => setNomeOuId(e.target.value)}
-              placeholder="Ex: MasterLeague"
+              placeholder="Ex: Brasileirão"
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
@@ -120,14 +122,27 @@ export default function TelaInicial({ onTorneioAcessado }) {
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
               Senha de Acesso
             </label>
-            <input
-              type="password"
-              required
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="••••••••"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
-            />
+            <div className="relative">
+              <input
+                type={mostrarSenha ? 'text' : 'password'}
+                required
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-4 pr-11 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha(!mostrarSenha)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+              >
+                {mostrarSenha ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           <button
@@ -149,7 +164,7 @@ export default function TelaInicial({ onTorneioAcessado }) {
               }}
               className="mt-1 text-emerald-400 hover:text-emerald-300 font-semibold text-sm hover:underline"
             >
-              Criar Novo Torneio →
+              Criar Novo Torneio
             </button>
           </div>
         </form>
@@ -165,7 +180,7 @@ export default function TelaInicial({ onTorneioAcessado }) {
               required
               value={nomeOuId}
               onChange={(e) => setNomeOuId(e.target.value)}
-              placeholder="Ex: Liga dos Campeões 2026"
+              placeholder="Ex: Brasileirão"
               className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
             />
           </div>
@@ -174,14 +189,27 @@ export default function TelaInicial({ onTorneioAcessado }) {
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
               Senha de Proteção
             </label>
-            <input
-              type="password"
-              required
-              value={senha}
-              onChange={(e) => setSenha(e.target.value)}
-              placeholder="Crie uma senha de acesso"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
-            />
+            <div className="relative">
+              <input
+                type={mostrarSenha ? 'text' : 'password'}
+                required
+                value={senha}
+                onChange={(e) => setSenha(e.target.value)}
+                placeholder="Crie uma senha de acesso"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-4 pr-11 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarSenha(!mostrarSenha)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+              >
+                {mostrarSenha ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
 
           {/* SELETOR HORIZONTAL DE FORMATOS */}
@@ -237,9 +265,9 @@ export default function TelaInicial({ onTorneioAcessado }) {
                 setErro(null);
                 setAbaAtual('acessar');
               }}
-              className="text-slate-400 hover:text-white text-sm transition-colors"
+              className="mt-1 text-emerald-400 hover:text-emerald-300 font-semibold text-sm hover:underline"
             >
-              ← Voltar para Acessar Torneio
+              Voltar para Acessar Torneio
             </button>
           </div>
         </form>
