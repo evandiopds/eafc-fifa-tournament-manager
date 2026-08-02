@@ -1,38 +1,65 @@
 import math
 import re
 
+
+# Valida os limites mínimos e máximos de inscritos por modalidade e formato de participação
 def validar_quantidade_times(num_jogadores: int, num_times: int, formato: str = "duplas", formato_torneio: str = "mata_mata") -> dict:
-    """
-    Valida matematicamente se a quantidade de times inscritos é suficiente.
-    Permite qualquer número >= 2, deixando o ajuste de chaves ímpares/não-potências para os Byes.
-    """
-    if num_jogadores < 2:
+    # 1. Regras oficiais de Limite Mínimo por formato do torneio
+    if formato_torneio == "copa":
+        minimo_jogadores = 6
+    elif formato_torneio == "pontos_corridos":
+        minimo_jogadores = 3
+    else:
+        minimo_jogadores = 4
+
+    if num_jogadores < minimo_jogadores:
         return {
             "valido": False,
-            "mensagem": "O torneio precisa de pelo menos 2 jogadores para acontecer!"
+            "mensagem": f"O formato '{formato_torneio}' exige no mínimo {minimo_jogadores} participantes para fechar o chaveamento corretamente."
         }
 
-    if formato in ["solo", "1v1"]:
-        times_necessarios = num_jogadores
-    else:
-        times_necessarios = math.ceil(num_jogadores / 2)
-        
-    if num_times >= times_necessarios:
-        return {"valido": True, "mensagem": "Quantidade de times validada com sucesso."}
-    else:
+    # 2. Regras de Limite Máximo por formato do torneio
+    max_times_permitidos = 20 if formato_torneio == "pontos_corridos" else 32
+    max_jogadores_solo = max_times_permitidos
+    max_jogadores_duplas = max_times_permitidos * 2
+
+    is_solo = formato in ["solo", "1v1"]
+
+    if is_solo and num_jogadores > max_jogadores_solo:
+        msg_solo = (
+            f"Limite de equipes em Pontos Corridos atingido (máx. {max_times_permitidos}). Para mais jogadores, utilize Mata-Mata/Copa ou opte por Duplas."
+            if formato_torneio == "pontos_corridos"
+            else f"Limite de equipes Solo atingido (máx. {max_times_permitidos}). Para mais participantes, opte pelo modo Duplas (até 64 jogadores) ou organize duplas externas ao sistema."
+        )
+        return {"valido": False, "mensagem": msg_solo}
+
+    if not is_solo and num_jogadores > max_jogadores_duplas:
+        return {
+            "valido": False,
+            "mensagem": f"Limite máximo de {max_jogadores_duplas} jogadores (para {max_times_permitidos} duplas) atingido para este formato."
+        }
+
+    # 3. Validação matemática de times suficientes para cobrir os jogadores
+    times_necessarios = num_jogadores if is_solo else math.ceil(num_jogadores / 2)
+
+    if num_times > max_times_permitidos:
+        return {
+            "valido": False,
+            "mensagem": f"O número de times de futebol selecionados ({num_times}) ultrapassa o limite máximo de {max_times_permitidos} times para este modo."
+        }
+
+    if num_times < times_necessarios:
         faltam = times_necessarios - num_times
         return {
-            "valido": False, 
+            "valido": False,
             "mensagem": f"Times insuficientes. Para {num_jogadores} jogadores no formato '{formato}', você precisa de pelo menos {times_necessarios} times. Faltam {faltam} times."
         }
 
+    return {"valido": True, "mensagem": "Quantidade de times validada com sucesso."}
+
+
+# Valida o formato e caracteres permitidos para o ID/Nome do torneio
 def validar_id_torneio(id_torneio: str) -> dict:
-    """
-    Valida o formato do ID do torneio:
-    - Tamanho: 1 a 15 caracteres
-    - Permitido: Letras (a-z, A-Z), Números (0-9), Hífen (-), Underline (_) e Ponto (.)
-    - Proibido: Espaços em branco e outros símbolos especiais
-    """
     padrao_seguro = r"^[a-zA-Z0-9_.-]{1,15}$"
     
     if not id_torneio or not re.match(padrao_seguro, id_torneio):
@@ -46,12 +73,9 @@ def validar_id_torneio(id_torneio: str) -> dict:
         "mensagem": "ID formatado corretamente."
     }
 
+
+# Valida o tamanho e formato da senha de acesso
 def validar_senha_torneio(senha: str) -> dict:
-    """
-    Valida a senha do torneio:
-    - Tamanho: 4 a 8 caracteres
-    - Permitido: Tudo, exceto espaços em branco
-    """
     if not senha or len(senha) < 4 or len(senha) > 8:
         return {
             "valido": False,

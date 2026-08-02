@@ -21,8 +21,8 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
-// Card de jogo individual para envio de placar
-function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo }) {
+// Card de jogo individual com suporte a placar, W.O. rápido e bloqueio por fase
+function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
   const [penCasa, setPenCasa] = useState(jogo.penaltis_casa ?? '');
@@ -34,6 +34,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   const nomeFora = typeof jogo.fora === 'string' ? jogo.fora : jogo.fora?.time || jogo.visitante?.time || 'Aguardando';
 
   const isAguardando = nomeCasa === 'Aguardando' || nomeFora === 'Aguardando';
+  const bloqueado = isAguardando || isBloqueado;
 
   const handleNumeroChange = (setter, valor) => {
     const apenasNumeros = valor.replace(/\D/g, '');
@@ -47,8 +48,36 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     golsVisitante !== '' &&
     Number(golsCasa) === Number(golsVisitante);
 
-  const handleSalvarPlacar = async () => {
-    if (isAguardando) return;
+  const salvarNoBackend = async (casaGols, foraGols, casaPen = null, foraPen = null) => {
+    setCarregando(true);
+    setStatusMsg(null);
+
+    try {
+      const resp = await axios.post(`${API_URL}/torneios/placar`, {
+        torneio_id: torneioId,
+        formato_torneio: formato,
+        rodada_ou_fase: rodadaOuFase,
+        index_partida: idx,
+        gols_casa: casaGols,
+        gols_visitante: foraGols,
+        penaltis_casa: casaPen,
+        penaltis_visitante: foraPen,
+      });
+
+      setStatusMsg({ erro: false, texto: 'Salvo!' });
+      if (onPlacarSalvo) onPlacarSalvo(resp.data);
+    } catch (err) {
+      setStatusMsg({
+        erro: true,
+        texto: err.response?.data?.detail || 'Erro ao salvar',
+      });
+    } finally {
+      setCarregando(false);
+    }
+  };
+
+  const handleSalvarPlacar = () => {
+    if (bloqueado) return;
 
     if (golsCasa === '' || golsVisitante === '') {
       setStatusMsg({ erro: true, texto: 'Preencha o placar!' });
@@ -65,34 +94,22 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
       }
     }
 
-    setCarregando(true);
-    setStatusMsg(null);
+    salvarNoBackend(
+      finalGolsCasa,
+      finalGolsVisitante,
+      empatadoNoMataMata ? Number(penCasa) : null,
+      empatadoNoMataMata ? Number(penVisitante) : null
+    );
+  };
 
-    try {
-      const resp = await axios.post(`${API_URL}/torneios/placar`, {
-        torneio_id: torneioId,
-        formato_torneio: formato,
-        rodada_ou_fase: rodadaOuFase,
-        index_partida: idx,
-        gols_casa: finalGolsCasa,
-        gols_visitante: finalGolsVisitante,
-        penaltis_casa: empatadoNoMataMata ? Number(penCasa) : null,
-        penaltis_visitante: empatadoNoMataMata ? Number(penVisitante) : null,
-      });
-
-      setStatusMsg({ erro: false, texto: 'Salvo!' });
-
-      if (onPlacarSalvo) {
-        onPlacarSalvo(resp.data);
-      }
-    } catch (err) {
-      setStatusMsg({
-        erro: true,
-        texto: err.response?.data?.detail || 'Erro ao salvar',
-      });
-    } finally {
-      setCarregando(false);
-    }
+  // Botão Rápido de W.O. (1x0 para Casa ou 0x1 para Fora)
+  const handleWO = (vencedor) => {
+    if (bloqueado) return;
+    const gCasa = vencedor === 'casa' ? 1 : 0;
+    const gFora = vencedor === 'fora' ? 1 : 0;
+    setGolsCasa(gCasa);
+    setGolsVisitante(gFora);
+    salvarNoBackend(gCasa, gFora);
   };
 
   const partCasa =
@@ -112,7 +129,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   return (
     <div
       className={`w-72 bg-slate-800/90 border rounded-xl p-3 flex flex-col gap-2 shadow-md transition-all ${
-        isAguardando ? 'border-slate-700/50 bg-slate-900/40 opacity-75' : 'border-slate-700 hover:border-slate-500'
+        bloqueado ? 'border-slate-700/50 bg-slate-900/40 opacity-75' : 'border-slate-700 hover:border-slate-500'
       }`}
     >
       <div className="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2">
@@ -136,7 +153,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         <input
           type="text"
           inputMode="numeric"
-          disabled={isAguardando}
+          disabled={bloqueado}
           value={golsCasa}
           onChange={(e) => handleNumeroChange(setGolsCasa, e.target.value)}
           placeholder="-"
@@ -165,7 +182,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         <input
           type="text"
           inputMode="numeric"
-          disabled={isAguardando}
+          disabled={bloqueado}
           value={golsVisitante}
           onChange={(e) => handleNumeroChange(setGolsVisitante, e.target.value)}
           placeholder="-"
@@ -173,38 +190,55 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         />
       </div>
 
-      {!isAguardando && (
-        <div className="flex items-center justify-between mt-1 pt-2 border-t border-slate-700/40">
-          {empatadoNoMataMata ? (
-            <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
-              <span>Pênaltis:</span>
-              <input
-                type="text"
-                value={penCasa}
-                onChange={(e) => handleNumeroChange(setPenCasa, e.target.value)}
-                className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
-              />
-              <span>×</span>
-              <input
-                type="text"
-                value={penVisitante}
-                onChange={(e) => handleNumeroChange(setPenVisitante, e.target.value)}
-                className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
-              />
-            </div>
-          ) : (
-            <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-              Placar Oficial
-            </span>
-          )}
+      {!bloqueado && (
+        <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-slate-700/40">
+          <div className="flex items-center justify-between">
+            {empatadoNoMataMata ? (
+              <div className="flex items-center gap-1 text-[11px] text-emerald-400 font-bold">
+                <span>Pênaltis:</span>
+                <input
+                  type="text"
+                  value={penCasa}
+                  onChange={(e) => handleNumeroChange(setPenCasa, e.target.value)}
+                  className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
+                />
+                <span>×</span>
+                <input
+                  type="text"
+                  value={penVisitante}
+                  onChange={(e) => handleNumeroChange(setPenVisitante, e.target.value)}
+                  className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
+                />
+              </div>
+            ) : (
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleWO('casa')}
+                  className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded"
+                  title="Vitória por W.O. (1x0)"
+                >
+                  W.O. Casa
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleWO('fora')}
+                  className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded"
+                  title="Vitória por W.O. (0x1)"
+                >
+                  W.O. Fora
+                </button>
+              </div>
+            )}
 
-          <button
-            onClick={handleSalvarPlacar}
-            disabled={carregando}
-            className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-3 py-1 rounded text-[11px] font-black uppercase transition-all shadow-sm ml-auto"
-          >
-            {carregando ? '...' : 'Salvar ✓'}
-          </button>
+            <button
+              onClick={handleSalvarPlacar}
+              disabled={carregando}
+              className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-3 py-1 rounded text-[11px] font-black uppercase transition-all shadow-sm ml-auto"
+            >
+              {carregando ? '...' : 'Salvar ✓'}
+            </button>
+          </div>
         </div>
       )}
 
@@ -217,13 +251,16 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   );
 }
 
-// Renderiza o formato correspondente ao torneio ativo
+// Componente Principal de Renderização do Torneio
 export default function Chaveamento({ torneio, dadosSorteados }) {
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
   const [dadosTorneio, setDadosTorneio] = useState(dadosSorteados);
   const [prevSorteados, setPrevSorteados] = useState(dadosSorteados);
+  const [statusTorneio, setStatusTorneio] = useState(torneio?.status || 'ativo');
+  
+  // Controle de aba ativa no modo Copa: 'grupos' ou 'mata_mata'
+  const [abaCopa, setAbaCopa] = useState('grupos');
 
-  // Sincroniza o estado de forma síncrona sem disparar efeitos em cascata
   if (dadosSorteados !== prevSorteados) {
     setPrevSorteados(dadosSorteados);
     setDadosTorneio(dadosSorteados);
@@ -240,6 +277,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
   }
 
   const { formato_torneio, chaveamento, classificacao = [] } = dadosTorneio;
+  const isFinalizado = statusTorneio === 'finalizado';
 
   const handleAtualizarDados = (respostaApi) => {
     if (respostaApi?.dados_sorteados) {
@@ -252,41 +290,159 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     }
   };
 
-  const renderCopa = () => {
-    const grupos = chaveamento.grupos || {};
-    const nomesGrupos = Object.keys(grupos);
+  // Aciona a rota de finalizar: avança da Fase de Grupos para o Mata-Mata na Copa ou encerra o torneio
+  const handleFinalizar = async () => {
+    const textoConfirmacao =
+      formato_torneio === 'copa' && statusTorneio === 'fase_grupos'
+        ? 'Deseja finalizar a Fase de Grupos? Os confrontos do Mata-Mata serão gerados e os placares de grupo bloqueados.'
+        : 'Deseja finalizar o torneio? Todas as alterações de placar serão bloqueadas permanentemente.';
+
+    if (!window.confirm(textoConfirmacao)) return;
+
+    try {
+      const resp = await axios.post(`${API_URL}/torneios/${torneio?.id}/finalizar`);
+      const novoStatus = resp.data?.novo_status || 'finalizado';
+      setStatusTorneio(novoStatus);
+
+      // Atualiza os dados locais imediatamente ao receber a resposta do servidor
+      if (resp.data?.dados_sorteados) {
+        setDadosTorneio(resp.data.dados_sorteados);
+      }
+
+      if (novoStatus === 'mata_mata') {
+        setAbaCopa('mata_mata');
+      }
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Erro ao finalizar etapa.');
+    }
+  };
+
+  // Renderização da Árvore Eliminatória (usada tanto no Mata-Mata Direto quanto na Copa)
+  const renderArvoreEliminatoria = (arvoreDados, isBloqueadoPorFase = false) => {
+    const fases = Object.keys(arvoreDados || {});
+
+    if (fases.length === 0) {
+      return (
+        <div className="text-center py-8 text-slate-400 text-sm">
+          Nenhum jogo eliminatório disponível no momento.
+        </div>
+      );
+    }
 
     return (
-      <div className="space-y-8">
-        <div className="text-center">
-          <h3 className="text-2xl font-extrabold text-white">
-            Fase de <span className="text-emerald-400">Grupos</span>
-          </h3>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {nomesGrupos.map((nomeGrupo) => (
-            <div key={nomeGrupo} className="bg-slate-800/90 border border-slate-700 rounded-xl overflow-hidden shadow-xl">
-              <div className="bg-slate-900/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
-                <h4 className="font-extrabold text-emerald-400 uppercase tracking-wider text-sm">{nomeGrupo}</h4>
+      <div className="overflow-x-auto pb-8 pt-2">
+        <div className="flex items-stretch justify-start md:justify-center gap-8 min-w-max px-4">
+          {fases.map((nomeFase) => (
+            <div key={nomeFase} className="flex flex-col justify-around gap-6 relative">
+              <div className="text-center pb-2 border-b border-slate-700/80 mb-2">
+                <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
+                  {nomeFase}
+                </span>
               </div>
-              <div className="p-4 space-y-3">
-                {grupos[nomeGrupo].map((item, idx) => (
-                  <CardPartida 
-                    key={`${item.id || idx}-${item.gols_casa}-${item.gols_visitante}`} 
-                    idx={idx} 
-                    jogo={item} 
-                    formato={formato_torneio} 
-                    rodadaOuFase={nomeGrupo}
+
+              <div className="flex flex-col justify-around flex-1 gap-6">
+                {arvoreDados[nomeFase].map((jogo, idx) => (
+                  <CardPartida
+                    key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
+                    idx={idx}
+                    jogo={jogo}
+                    formato={formato_torneio}
+                    rodadaOuFase={nomeFase}
                     torneioId={torneio?.id}
                     onPlacarSalvo={handleAtualizarDados}
+                    isBloqueado={isFinalizado || isBloqueadoPorFase}
                   />
                 ))}
               </div>
             </div>
           ))}
         </div>
+      </div>
+    );
+  };
 
-        <TabelaClassificacao classificacao={classificacao} />
+  const renderCopa = () => {
+    const grupos = chaveamento.grupos || {};
+    const arvoreMataMata = chaveamento.arvore || {};
+    const nomesGrupos = Object.keys(grupos);
+    const inFaseGrupos = statusTorneio === 'fase_grupos' || statusTorneio === 'ativo';
+
+    return (
+      <div className="space-y-8">
+        {/* Seletor de Abas: Fase de Grupos | Mata-Mata */}
+        <div className="flex justify-center border-b border-slate-700 pb-4">
+          <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
+            <button
+              type="button"
+              onClick={() => setAbaCopa('grupos')}
+              className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                abaCopa === 'grupos'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Fase de Grupos
+            </button>
+            <button
+              type="button"
+              onClick={() => setAbaCopa('mata_mata')}
+              className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+                abaCopa === 'mata_mata'
+                  ? 'bg-emerald-500 text-slate-950 shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Mata-Mata {inFaseGrupos && '🔒'}
+            </button>
+          </div>
+        </div>
+
+        {abaCopa === 'grupos' ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {nomesGrupos.map((nomeGrupo) => {
+              const tabelaGrupo = Array.isArray(classificacao)
+                ? classificacao
+                : classificacao[nomeGrupo] || [];
+
+              return (
+                <div key={nomeGrupo} className="bg-slate-800/90 border border-slate-700 rounded-xl overflow-hidden shadow-xl flex flex-col justify-between">
+                  <div>
+                    <div className="bg-slate-900/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
+                      <h4 className="font-extrabold text-emerald-400 uppercase tracking-wider text-sm">{nomeGrupo}</h4>
+                    </div>
+                    <div className="p-4 space-y-3 flex flex-col items-center">
+                      {grupos[nomeGrupo].map((item, idx) => (
+                        <CardPartida 
+                          key={`${item.id || idx}-${item.gols_casa}-${item.gols_visitante}`} 
+                          idx={idx} 
+                          jogo={item} 
+                          formato={formato_torneio} 
+                          rodadaOuFase={nomeGrupo}
+                          torneioId={torneio?.id}
+                          onPlacarSalvo={handleAtualizarDados}
+                          isBloqueado={!inFaseGrupos || isFinalizado}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="p-3 border-t border-slate-700/60 bg-slate-900/40">
+                    <TabelaClassificacao classificacao={tabelaGrupo} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div>
+            {inFaseGrupos && (
+              <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs text-center font-bold">
+                Conclua e finalize a Fase de Grupos para habilitar os jogos do Mata-Mata!
+              </div>
+            )}
+            {renderArvoreEliminatoria(arvoreMataMata, inFaseGrupos)}
+          </div>
+        )}
       </div>
     );
   };
@@ -320,7 +476,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           ))}
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-3 flex flex-col items-center">
           {jogosRodada.map((jogo, idx) => (
             <CardPartida 
               key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`} 
@@ -330,6 +486,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
               rodadaOuFase={`Rodada ${jogo.rodada}`}
               torneioId={torneio?.id}
               onPlacarSalvo={handleAtualizarDados}
+              isBloqueado={isFinalizado}
             />
           ))}
         </div>
@@ -339,76 +496,29 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   };
 
-  const renderMataMata = () => {
-    const arvore = chaveamento.arvore || {};
-    const fases = Object.keys(arvore);
-
-    if (fases.length === 0) {
-      const confrontos = chaveamento.partidas_iniciais || [];
-      return (
-        <div className="space-y-4">
-          {confrontos.map((jogo, idx) => (
-            <CardPartida 
-              key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`} 
-              idx={idx} 
-              jogo={jogo} 
-              formato={formato_torneio} 
-              rodadaOuFase="Mata-Mata"
-              torneioId={torneio?.id}
-              onPlacarSalvo={handleAtualizarDados}
-            />
-          ))}
-        </div>
-      );
-    }
-
-    return (
-      <div className="space-y-8">
-        <div className="text-center">
-          <h3 className="text-2xl font-extrabold text-white">
-            Árvore do <span className="text-emerald-400">Torneio</span>
-          </h3>
-          <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider">
-            Acompanhe o caminho até a grande final
-          </p>
-        </div>
-
-        <div className="overflow-x-auto pb-8 pt-2">
-          <div className="flex items-stretch justify-start md:justify-center gap-8 min-w-max px-4">
-            {fases.map((nomeFase) => (
-              <div key={nomeFase} className="flex flex-col justify-around gap-6 relative">
-                <div className="text-center pb-2 border-b border-slate-700/80 mb-2">
-                  <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
-                    {nomeFase}
-                  </span>
-                </div>
-
-                <div className="flex flex-col justify-around flex-1 gap-6">
-                  {arvore[nomeFase].map((jogo, idx) => (
-                    <CardPartida
-                      key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
-                      idx={idx}
-                      jogo={jogo}
-                      formato={formato_torneio}
-                      rodadaOuFase={nomeFase}
-                      torneioId={torneio?.id}
-                      onPlacarSalvo={handleAtualizarDados}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
-    <div className="w-full max-w-6xl mx-auto pb-12">
+    <div className="w-full max-w-6xl mx-auto pb-12 space-y-8">
       {formato_torneio === 'copa' && renderCopa()}
       {formato_torneio === 'pontos_corridos' && renderPontosCorridos()}
-      {formato_torneio === 'mata_mata' && renderMataMata()}
+      {formato_torneio === 'mata_mata' && renderArvoreEliminatoria(chaveamento.arvore, isFinalizado)}
+
+      {/* Botão de Encerramento de Etapa/Torneio */}
+      {!isFinalizado ? (
+        <div className="flex justify-center pt-4 border-t border-slate-700/60">
+          <button
+            onClick={handleFinalizar}
+            className="bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider px-6 py-3 rounded-xl shadow-lg transition-all"
+          >
+            {formato_torneio === 'copa' && statusTorneio === 'fase_grupos'
+              ? 'Finalizar Fase de Grupos →'
+              : 'Finalizar Torneio ✓'}
+          </button>
+        </div>
+      ) : (
+        <div className="text-center py-4 bg-slate-800/80 border border-slate-700 rounded-xl text-emerald-400 font-bold text-sm">
+          ✓ Torneio Finalizado
+        </div>
+      )}
     </div>
   );
 }

@@ -13,7 +13,11 @@ from pydantic import BaseModel
 import database
 from matchmaking import sortear_duplas, sortear_times, gerar_chaveamento_aleatorio
 from validators import validar_quantidade_times, validar_id_torneio, validar_senha_torneio
-from standings import calcular_tabela_classificacao, avancar_vencedor_mata_mata
+from standings import (
+    calcular_tabela_classificacao,
+    avancar_vencedor_mata_mata,
+    avancar_classificados_copa,
+)
 
 
 # Rotina em segundo plano para excluir torneios inativos há mais de 30 dias
@@ -90,6 +94,10 @@ class TorneioAcesso(BaseModel):
     senha: str
 
 
+class FormatoUpdate(BaseModel):
+    formato: str
+
+
 class PlacarRequest(BaseModel):
     torneio_id: str
     formato_torneio: str
@@ -130,7 +138,7 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
             "time": p.nome_clube,
             "participantes": p.jogador,
             "sigla": p.sigla,
-            "escudo_url": p.escudo_url
+            "escudo_url": p.escudo_url,
         }
         for p in participantes_db
     }
@@ -146,7 +154,8 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
             "gols_visitante": p.gols_fora,
             "penaltis_casa": p.penaltis_casa,
             "penaltis_visitante": p.penaltis_fora,
-            "status": p.status
+            "status": p.status,
+            "rodada": 1,
         }
 
         if p.fase and "Rodada" in p.fase:
@@ -160,7 +169,7 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
     chaveamento_reconstruido = {
         "fase": "Em Andamento",
         "partidas_iniciais": partidas_formatadas,
-        "confrontos": partidas_formatadas
+        "confrontos": partidas_formatadas,
     }
 
     if torneio.formato == "mata_mata":
@@ -178,17 +187,114 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
 
     elif torneio.formato == "copa":
         grupos = defaultdict(list)
+        arvore = defaultdict(list)
         for j in partidas_formatadas:
-            grupo_nome = j.get("fase") or "Fase de Grupos"
-            grupos[grupo_nome].append(j)
+            fase_nome = j.get("fase") or "Grupo A"
+            if "Grupo" in fase_nome:
+                grupos[fase_nome].append(j)
+            else:
+                arvore[fase_nome].append(j)
+                
         chaveamento_reconstruido["grupos"] = dict(grupos)
+        chaveamento_reconstruido["arvore"] = dict(arvore)
         chaveamento_reconstruido["classificacao"] = calcular_tabela_classificacao(db, torneio.id)
 
     return {
         "status": "sucesso",
         "formato_torneio": torneio.formato,
         "chaveamento": chaveamento_reconstruido,
-        "classificacao": chaveamento_reconstruido.get("classificacao", [])
+        "classificacao": chaveamento_reconstruido.get("classificacao", []),
+    }
+
+
+# Atualiza o formato do torneio antes de gerar o chaveamento (Task #38)
+@app.put("/api/torneios/{torneio_id}/formato")
+def atualizar_formato_torneio(
+    torneio_id: str, payload: FormatoUpdate, db: Session = Depends(get_db)
+):
+    torneio = db.query(database.Torneio).filter(database.Torneio.id == torneio_id).first()
+    if not torneio:
+        raise HTTPException(status_code=404, detail="Torneio não encontrado.")
+
+    partidas_existentes = db.query(database.Partida).filter(
+        database.Partida.torneio_id == torneio_id
+    ).first()
+    if partidas_existentes:
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível alterar o formato após gerar as partidas do torneio.",
+        )
+
+    torneio.formato = payload.formato
+    db.commit()
+    return {
+        "status": "sucesso",
+        "mensagem": "Formato atualizado com sucesso!",
+        "formato": torneio.formato,
+    }
+
+
+# Marca o torneio como finalizado e trava alterações futuras (Task #40) + Transição da Copa
+@app.post("/api/torneios/{torneio_id}/finalizar")
+def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
+    torneio = db.query(database.Torneio).filter(database.Torneio.id == torneio_id).first()
+    if not torneio:
+        raise HTTPException(status_code=404, detail="Torneio não encontrado.")
+
+    status_atual = getattr(torneio, "status", "ativo")
+
+    # 1. Modo Copa: Finalizar Fase de Grupos
+    if torneio.formato == "copa" and status_atual in ["ativo", "fase_grupos"]:
+        pendentes = db.query(database.Partida).filter(
+            database.Partida.torneio_id == torneio_id,
+            database.Partida.fase.like("%Grupo%"),
+            database.Partida.status == "pendente"
+        ).count()
+
+        if pendentes > 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Não é possível finalizar a Fase de Grupos! Ainda restam {pendentes} partida(s) pendente(s)."
+            )
+
+        sucesso_avanco = avancar_classificados_copa(db, torneio_id)
+        if not sucesso_avanco:
+            raise HTTPException(status_code=500, detail="Erro ao processar classificados da Fase de Grupos.")
+
+        torneio.status = "mata_mata"
+        db.commit()
+
+        dados_atualizados = montar_dados_torneio(db, torneio)
+
+        return {
+            "status": "sucesso",
+            "mensagem": "Fase de Grupos finalizada com sucesso! Os confrontos do Mata-Mata foram gerados.",
+            "novo_status": "mata_mata",
+            "dados_sorteados": dados_atualizados,
+        }
+
+    # 2. Finalização Geral do Torneio (Mata-Mata, Pontos Corridos ou Fim da Copa)
+    pendentes_geral = db.query(database.Partida).filter(
+        database.Partida.torneio_id == torneio_id,
+        database.Partida.status == "pendente"
+    ).count()
+
+    if pendentes_geral > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Não é possível finalizar o torneio! Ainda restam {pendentes_geral} partida(s) sem resultado."
+        )
+
+    torneio.status = "finalizado"
+    db.commit()
+
+    dados_atualizados = montar_dados_torneio(db, torneio)
+
+    return {
+        "status": "sucesso",
+        "mensagem": "Torneio finalizado com sucesso! Edições de placar foram bloqueadas permanentemente.",
+        "novo_status": "finalizado",
+        "dados_sorteados": dados_atualizados,
     }
 
 
@@ -217,8 +323,11 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
 
     chaveamento = gerar_chaveamento_aleatorio(participantes_com_times, payload.formato_torneio)
 
-    # Substitui os dados antigos no banco se o sorteio pertencer a um torneio existente
     if payload.torneio_id:
+        torneio = db.query(database.Torneio).filter(database.Torneio.id == payload.torneio_id).first()
+        if torneio:
+            torneio.status = "fase_grupos" if payload.formato_torneio == "copa" else "ativo"
+
         db.query(database.Partida).filter(database.Partida.torneio_id == payload.torneio_id).delete()
         db.query(database.Participante).filter(database.Participante.torneio_id == payload.torneio_id).delete()
         db.commit()
@@ -255,7 +364,9 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
             nome_casa = obter_nome_time(jogo.get("casa"))
             nome_fora = obter_nome_time(jogo.get("fora") or jogo.get("visitante"))
 
-            if jogo.get("rodada"):
+            if payload.formato_torneio == "copa":
+                fase_partida = jogo.get("fase") or fase_nome
+            elif jogo.get("rodada"):
                 fase_partida = f"Rodada {jogo.get('rodada')}"
             else:
                 fase_partida = jogo.get("fase") or fase_nome
@@ -301,7 +412,8 @@ def criar_torneio(torneio: TorneioCreate, db: Session = Depends(get_db)):
         id=novo_id,
         nome=torneio.nome,
         formato=torneio.formato,
-        senha_hash=torneio.senha
+        senha_hash=torneio.senha,
+        status="fase_grupos" if torneio.formato == "copa" else "ativo"
     )
     
     db.add(novo_torneio)
@@ -337,14 +449,38 @@ def acessar_torneio(payload: TorneioAcesso, db: Session = Depends(get_db)):
             "nome": torneio.nome,
             "formato": torneio.formato,
             "criado_em": torneio.criado_em,
-            "ultimo_acesso": torneio.ultimo_acesso
+            "ultimo_acesso": torneio.ultimo_acesso,
+            "status": getattr(torneio, "status", "ativo"),
         },
-        "dados_sorteados": dados_sorteados
+        "dados_sorteados": dados_sorteados,
     }
 
 
 @app.post("/api/torneios/placar")
 def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_db)):
+    torneio = db.query(database.Torneio).filter(database.Torneio.id == payload.torneio_id).first()
+    if not torneio:
+        raise HTTPException(status_code=404, detail="Torneio não encontrado.")
+
+    status_atual = getattr(torneio, "status", "ativo")
+
+    if status_atual == "finalizado":
+        raise HTTPException(
+            status_code=400,
+            detail="Este torneio já foi finalizado e os placares não podem mais ser alterados!"
+        )
+
+    # Trava: Não permite registrar jogos eliminatórios no Modo Copa se ainda estiver na Fase de Grupos
+    if (
+        payload.formato_torneio == "copa"
+        and status_atual in ["ativo", "fase_grupos"]
+        and "Grupo" not in payload.rodada_ou_fase
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Conclua e finalize a Fase de Grupos antes de registrar placares do Mata-Mata!"
+        )
+
     if payload.gols_casa < 0 or payload.gols_visitante < 0:
         raise HTTPException(status_code=400, detail="Gols não podem ser negativos.")
 
@@ -377,17 +513,18 @@ def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_d
     db.commit()
     db.refresh(partida)
 
-    if payload.formato_torneio == "mata_mata":
+    # Avanço na árvore apenas nos modos eliminatórios puros ou na fase eliminatória da Copa
+    if payload.formato_torneio == "mata_mata" or (
+        payload.formato_torneio == "copa" and "Grupo" not in payload.rodada_ou_fase
+    ):
         msg_avanco = avancar_vencedor_mata_mata(db, partida)
 
-    # Retorna os dados completos atualizados para atualizar a tela sem precisar relogar
-    torneio = db.query(database.Torneio).filter(database.Torneio.id == payload.torneio_id).first()
-    dados_atualizados = montar_dados_torneio(db, torneio) if torneio else None
+    dados_atualizados = montar_dados_torneio(db, torneio)
 
     return {
         "status": "sucesso",
         "mensagem": "Placar persistido corretamente no banco de dados!",
         "avanco_mata_mata": msg_avanco,
         "classificacao": dados_atualizados.get("classificacao", []) if dados_atualizados else [],
-        "dados_sorteados": dados_atualizados
+        "dados_sorteados": dados_atualizados,
     }

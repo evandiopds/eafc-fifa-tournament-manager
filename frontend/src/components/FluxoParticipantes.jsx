@@ -4,6 +4,9 @@ import axios from 'axios';
 const API_URL = 'http://127.0.0.1:8000/api';
 
 export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
+  // Estado para edição do formato (Task #38)
+  const [formatoTorneio, setFormatoTorneio] = useState(torneio?.formato || 'mata_mata');
+  
   const [modoEntrada, setModoEntrada] = useState('aleatorio');
   const [modoJogo, setModoJogo] = useState('solo');
   const [balanceado, setBalanceado] = useState(true); 
@@ -72,6 +75,13 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
     setCarregando(true);
 
     try {
+      // Task #38: Se o usuário mudou o formato na UI, atualiza no back-end primeiro
+      if (torneio?.id && formatoTorneio !== torneio.formato) {
+        await axios.put(`${API_URL}/torneios/${torneio.id}/formato`, {
+          formato: formatoTorneio
+        });
+      }
+
       let payload;
 
       if (modoEntrada === 'aleatorio') {
@@ -80,7 +90,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           jogadores: jogadores,
           times: times,
           modo: modoJogo,
-          formato_torneio: torneio.formato,
+          formato_torneio: formatoTorneio,
           balanceado: balanceado,
           manual: false
         };
@@ -93,7 +103,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           jogadores: listaNomes,
           times: listaTimes,
           modo: 'solo',
-          formato_torneio: torneio.formato,
+          formato_torneio: formatoTorneio,
           balanceado: false,
           manual: true
         };
@@ -118,7 +128,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
             Configurar <span className="text-emerald-400">Participantes</span>
           </h2>
           <p className="text-sm text-slate-400">
-            Cadastre os jogadores e times que disputarão {torneio.nome}
+            Cadastre os jogadores e times que disputarão {torneio?.nome || 'o torneio'}
           </p>
         </div>
 
@@ -148,6 +158,49 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
         </div>
       </div>
 
+      {/* Seletor de Troca Rápida de Formato do Torneio (Task #38) */}
+      <div className="bg-slate-900/80 border border-slate-700 px-5 py-4 rounded-xl mb-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold text-white">Formato da Competição</p>
+          <p className="text-xs text-slate-400">Você pode corrigir a modalidade antes de gerar a tabela</p>
+        </div>
+        <div className="flex bg-slate-800 p-1 rounded-lg border border-slate-700">
+          <button
+            type="button"
+            onClick={() => setFormatoTorneio('mata_mata')}
+            className={`px-3 py-1.5 rounded text-xs font-extrabold transition-all ${
+              formatoTorneio === 'mata_mata'
+                ? 'bg-emerald-500 text-slate-950 shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Mata-Mata
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormatoTorneio('copa')}
+            className={`px-3 py-1.5 rounded text-xs font-extrabold transition-all ${
+              formatoTorneio === 'copa'
+                ? 'bg-emerald-500 text-slate-950 shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Modo Copa
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormatoTorneio('pontos_corridos')}
+            className={`px-3 py-1.5 rounded text-xs font-extrabold transition-all ${
+              formatoTorneio === 'pontos_corridos'
+                ? 'bg-emerald-500 text-slate-950 shadow'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            Pontos Corridos
+          </button>
+        </div>
+      </div>
+
       <div className="flex gap-2 mb-6">
         <button
           type="button"
@@ -173,7 +226,6 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
         </button>
       </div>
 
-      {/* Toggle de Sorteio Balanceado (Ouro/Prata/Bronze) visível no modo aleatório */}
       {modoEntrada === 'aleatorio' && (
         <div className="flex items-center justify-between bg-slate-900/80 border border-slate-700 px-5 py-3 rounded-xl mb-6">
           <div>
