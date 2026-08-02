@@ -109,8 +109,7 @@ def _gerar_tabela_pontos_corridos(times_tabela: list, ida_e_volta: bool = True) 
             
     return confrontos_totais
 
-
-# Gera uma estrutura de chaveamento eliminatório (Mata-Mata) a partir de uma lista de times
+# Gera uma estrutura de chaveamento eliminatório (Mata-Mata) com Final e Terceiro Lugar
 def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
     base = 1
     while base * 2 <= total:
@@ -157,11 +156,17 @@ def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
         
         tamanho_futuro = (base // 2) // 2
         while tamanho_futuro >= 1:
-            nome_futuro = fases_nomes.get(tamanho_futuro, "Fase Final")
-            rodadas_arvore[nome_futuro] = [
-                {"fase": nome_futuro, "casa": "Aguardando", "fora": "Aguardando"}
-                for _ in range(tamanho_futuro)
-            ]
+            nome_futuro = fases_nomes.get(tamanho_futuro, "Final")
+            if tamanho_futuro == 1:
+                jogos_finais = [{"fase": "Final", "casa": "Aguardando", "fora": "Aguardando"}]
+                if base >= 4:
+                    jogos_finais.append({"fase": "Terceiro Lugar", "casa": "Aguardando", "fora": "Aguardando"})
+                rodadas_arvore["Final"] = jogos_finais
+            else:
+                rodadas_arvore[nome_futuro] = [
+                    {"fase": nome_futuro, "casa": "Aguardando", "fora": "Aguardando"}
+                    for _ in range(tamanho_futuro)
+                ]
             tamanho_futuro //= 2
             
     else:
@@ -169,24 +174,33 @@ def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
         idx_lista = 0
         
         while tamanho_atual >= 1:
-            nome_fase = fases_nomes.get(tamanho_atual, "Eliminatória")
+            nome_fase = fases_nomes.get(tamanho_atual, "Final")
             jogos_fase = []
             
-            for _ in range(tamanho_atual):
-                if idx_lista < total:
-                    jogos_fase.append({
-                        "fase": nome_fase,
-                        "casa": lista_times[idx_lista],
-                        "fora": lista_times[idx_lista+1]
-                    })
-                    idx_lista += 2
-                else:
-                    jogos_fase.append({
-                        "fase": nome_fase,
-                        "casa": "Aguardando",
-                        "fora": "Aguardando"
-                    })
-            rodadas_arvore[nome_fase] = jogos_fase
+            if tamanho_atual == 1:
+                casa_final = lista_times[idx_lista] if idx_lista < total else "Aguardando"
+                fora_final = lista_times[idx_lista+1] if idx_lista+1 < total else "Aguardando"
+                jogos_fase.append({"fase": "Final", "casa": casa_final, "fora": fora_final})
+                
+                if base >= 4:
+                    jogos_fase.append({"fase": "Terceiro Lugar", "casa": "Aguardando", "fora": "Aguardando"})
+                rodadas_arvore["Final"] = jogos_fase
+            else:
+                for _ in range(tamanho_atual):
+                    if idx_lista < total:
+                        jogos_fase.append({
+                            "fase": nome_fase,
+                            "casa": lista_times[idx_lista],
+                            "fora": lista_times[idx_lista+1]
+                        })
+                        idx_lista += 2
+                    else:
+                        jogos_fase.append({
+                            "fase": nome_fase,
+                            "casa": "Aguardando",
+                            "fora": "Aguardando"
+                        })
+                rodadas_arvore[nome_fase] = jogos_fase
             tamanho_atual //= 2
 
     todas_partidas = []
@@ -194,7 +208,6 @@ def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
         todas_partidas.extend(rodadas_arvore[chave_fase])
 
     return rodadas_arvore, todas_partidas
-
 
 def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida_e_volta: bool = True) -> dict:
     lista = participantes_com_times.copy()

@@ -22,7 +22,7 @@ Ao jogar com os amigos pensei em criar esse projeto: um gerenciador de torneios 
 - [x] **Sprint 3 (Regras e Validações):** Implementação dos critérios de desempate e validação rígida de ID (Regex) e Senha para a criação dos torneios.
 - [x] **Sprint 4 (Front-End & UI):** Construção da interface Web, incluindo o formulário dinâmico em JavaScript que alterna entre Solo e Dupla.
 - [x] **Sprint 5 (Integração, Deploy e Limpeza):** Conexão das rotas, configuração da rotina de exclusão automática (Retenção de Dados) e deploy na nuvem.
--  [ ] **Sprint 6 (Polimento e UI/UX):** Elevar a qualidade da interface gráfica e implementar regras avançadas de renderização. 
+-  [x] **Sprint 6 (Polimento e UI/UX):** Elevar a qualidade da interface gráfica e implementar regras avançadas de renderização. 
 -  [ ] **Sprint 7 (Deploy em Nuvem, Polimento Final):** Retirar a aplicação do ambiente local de desenvolvimento (`localhost`) e disponibilizá-la publicamente na internet, alta performance e persistência de dados contínua, além de realizar testes ponta a ponta e ajustes finais de responsividade no Front-End. 
 ---
 *Desenvolvido por Evandio de Souza Filho.*

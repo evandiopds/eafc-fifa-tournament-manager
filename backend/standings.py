@@ -220,42 +220,103 @@ def avancar_classificados_copa(db: Session, torneio_id: str) -> bool:
     return True
 
 
-# Determina o vencedor de um jogo eliminatório e avança o time na árvore do torneio
+# Determina o vencedor de um jogo eliminatório e avança o time na árvore do torneio mantendo a ordem dos confrontos
+# Determina o vencedor de um jogo eliminatório e avança vencedor (e perdedor na Semi)
 def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
     time_casa = db.query(database.Participante).filter(database.Participante.id == partida.time_casa_id).first()
     time_fora = db.query(database.Participante).filter(database.Participante.id == partida.time_fora_id).first()
 
     vencedor_id = None
+    perdedor_id = None
+
     if time_fora and "Acesso Direto" in time_fora.nome_clube:
         vencedor_id = partida.time_casa_id
+        perdedor_id = partida.time_fora_id
     elif time_casa and "Acesso Direto" in time_casa.nome_clube:
         vencedor_id = partida.time_fora_id
+        perdedor_id = partida.time_casa_id
     else:
         g_casa = partida.gols_casa or 0
         g_fora = partida.gols_fora or 0
         
         if g_casa > g_fora:
             vencedor_id = partida.time_casa_id
+            perdedor_id = partida.time_fora_id
         elif g_fora > g_casa:
             vencedor_id = partida.time_fora_id
+            perdedor_id = partida.time_casa_id
         else:
             pen_casa = partida.penaltis_casa or 0
             pen_fora = partida.penaltis_fora or 0
-            vencedor_id = partida.time_casa_id if pen_casa > pen_fora else partida.time_fora_id
+            if pen_casa > pen_fora:
+                vencedor_id = partida.time_casa_id
+                perdedor_id = partida.time_fora_id
+            else:
+                vencedor_id = partida.time_fora_id
+                perdedor_id = partida.time_casa_id
 
-    proxima_partida = db.query(database.Partida).filter(
+    if not vencedor_id:
+        return "Nenhum vencedor determinado."
+
+    if partida.fase in ["Final", "Terceiro Lugar"]:
+        return "Decisão concluída! Campeão ou 3º lugar definido."
+
+    partidas_torneio = db.query(database.Partida).filter(
         database.Partida.torneio_id == partida.torneio_id,
-        database.Partida.id > partida.id,
-        database.Partida.status == "pendente",
-        (database.Partida.time_casa_id == None) | (database.Partida.time_fora_id == None)
-    ).first()
+        ~database.Partida.fase.like("%Grupo%")
+    ).order_by(database.Partida.id.asc()).all()
 
-    if proxima_partida and vencedor_id:
-        if proxima_partida.time_casa_id is None:
-            proxima_partida.time_casa_id = vencedor_id
+    partidas_fase_atual = [p for p in partidas_torneio if p.fase == partida.fase]
+    try:
+        idx_na_fase = [p.id for p in partidas_fase_atual].index(partida.id)
+    except ValueError:
+        return "Erro ao localizar a partida na chave atual."
+
+    # REGRA ESPECIAL DE SEMIFINAL: Vencedor -> Final | Perdedor -> Terceiro Lugar
+    if partida.fase == "Semifinal":
+        jogo_final = next((p for p in partidas_torneio if p.fase == "Final"), None)
+        jogo_terceiro = next((p for p in partidas_torneio if p.fase == "Terceiro Lugar"), None)
+
+        if jogo_final:
+            if idx_na_fase % 2 == 0:
+                jogo_final.time_casa_id = vencedor_id
+            else:
+                jogo_final.time_fora_id = vencedor_id
+
+        if jogo_terceiro and perdedor_id:
+            if idx_na_fase % 2 == 0:
+                jogo_terceiro.time_casa_id = perdedor_id
+            else:
+                jogo_terceiro.time_fora_id = perdedor_id
+
+        db.commit()
+        return "Vencedor avançou para a Final e perdedor para a disputa de 3º Lugar!"
+
+    # FLUXO PADRÃO (Oitavas, Quartas, etc.)
+    fases_ordem = []
+    for p in partidas_torneio:
+        if p.fase not in fases_ordem:
+            fases_ordem.append(p.fase)
+
+    try:
+        idx_fase_atual = fases_ordem.index(partida.fase)
+        if idx_fase_atual + 1 >= len(fases_ordem):
+            return "Torneio finalizado."
+        nome_proxima_fase = fases_ordem[idx_fase_atual + 1]
+    except ValueError:
+        return "Fase seguinte não encontrada."
+
+    partidas_proxima_fase = [p for p in partidas_torneio if p.fase == nome_proxima_fase]
+    idx_destino = idx_na_fase // 2
+
+    if idx_destino < len(partidas_proxima_fase):
+        jogo_destino = partidas_proxima_fase[idx_destino]
+        if idx_na_fase % 2 == 0:
+            jogo_destino.time_casa_id = vencedor_id
         else:
-            proxima_partida.time_fora_id = vencedor_id
+            jogo_destino.time_fora_id = vencedor_id
+            
         db.commit()
         return "Vencedor avançou para a próxima fase!"
-        
-    return "Fase final ou próxima partida já preenchida."
+
+    return "Não foi possível alocar o vencedor na próxima fase."

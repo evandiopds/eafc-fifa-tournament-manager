@@ -317,9 +317,36 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     }
   };
 
-  // Renderização da Árvore Eliminatória (usada tanto no Mata-Mata Direto quanto na Copa)
+  // Renderização da Árvore Eliminatória
   const renderArvoreEliminatoria = (arvoreDados, isBloqueadoPorFase = false) => {
-    const fases = Object.keys(arvoreDados || {});
+    // 1. Agrupa 'Final' e 'Terceiro Lugar' na coluna chamada 'Decisões'
+    const arvoreProcessada = {};
+    Object.keys(arvoreDados || {}).forEach((fase) => {
+      if (
+        fase === 'Final' ||
+        fase === 'Terceiro Lugar' ||
+        fase === 'Decisões' ||
+        (fase.includes('Final') && fase.includes('Decis'))
+      ) {
+        if (!arvoreProcessada['Decisões']) {
+          arvoreProcessada['Decisões'] = [];
+        }
+        arvoreProcessada['Decisões'].push(...arvoreDados[fase]);
+      } else {
+        arvoreProcessada[fase] = arvoreDados[fase];
+      }
+    });
+
+    // 2. Garante que a Final fique em primeiro e o Terceiro Lugar em segundo
+    if (arvoreProcessada['Decisões']) {
+      arvoreProcessada['Decisões'].sort((a, b) => {
+        if (a.fase === 'Final') return -1;
+        if (b.fase === 'Final') return 1;
+        return 0;
+      });
+    }
+
+    const fases = Object.keys(arvoreProcessada);
 
     if (fases.length === 0) {
       return (
@@ -334,25 +361,59 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
         <div className="flex items-stretch justify-start md:justify-center gap-8 min-w-max px-4">
           {fases.map((nomeFase) => (
             <div key={nomeFase} className="flex flex-col justify-around gap-6 relative">
+              {/* Título da Coluna */}
               <div className="text-center pb-2 border-b border-slate-700/80 mb-2">
                 <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
-                  {nomeFase}
+                  {nomeFase === 'Decisões' ? 'Decisões' : nomeFase}
                 </span>
               </div>
 
-              <div className="flex flex-col justify-around flex-1 gap-6">
-                {arvoreDados[nomeFase].map((jogo, idx) => (
-                  <CardPartida
-                    key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
-                    idx={idx}
-                    jogo={jogo}
-                    formato={formato_torneio}
-                    rodadaOuFase={nomeFase}
-                    torneioId={torneio?.id}
-                    onPlacarSalvo={handleAtualizarDados}
-                    isBloqueado={isFinalizado || isBloqueadoPorFase}
-                  />
-                ))}
+              {/* Container das partidas da coluna */}
+              <div
+                className={`flex flex-col flex-1 ${
+                  nomeFase === 'Decisões' ? 'justify-between py-2' : 'justify-around gap-6'
+                }`}
+              >
+                {arvoreProcessada[nomeFase].map((jogo, idx) => {
+                  const isFinal = jogo.fase === 'Final';
+                  const isTerceiro = jogo.fase === 'Terceiro Lugar';
+
+                  return (
+                    <div
+                      key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
+                      className={`flex flex-col gap-1.5 items-center ${
+                        isFinal
+                          ? 'my-auto z-10'
+                          : isTerceiro
+                          ? 'mb-2 mt-0 opacity-75 hover:opacity-100 scale-90 transition-all'
+                          : ''
+                      }`}
+                    >
+                      {/* Cabeçalho superior colado no card na coluna de DECISÕES */}
+                      {(isFinal || isTerceiro) && (
+                        <span
+                          className={`text-[11px] font-black uppercase tracking-widest px-3 py-0.5 rounded-full border ${
+                            isFinal
+                              ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-sm'
+                              : 'bg-slate-800/80 border-slate-700 text-slate-400 text-[10px]'
+                          }`}
+                        >
+                          {isFinal ? '🏆 FINAL' : '🥉 TERCEIRO LUGAR'}
+                        </span>
+                      )}
+
+                      <CardPartida
+                        idx={idx}
+                        jogo={jogo}
+                        formato={formato_torneio}
+                        rodadaOuFase={jogo.fase || nomeFase}
+                        torneioId={torneio?.id}
+                        onPlacarSalvo={handleAtualizarDados}
+                        isBloqueado={isFinalizado || isBloqueadoPorFase}
+                      />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
