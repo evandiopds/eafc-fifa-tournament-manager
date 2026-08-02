@@ -25,5 +25,4 @@ Ao jogar com os amigos pensei em criar esse projeto: um gerenciador de torneios 
 -  [x] **Sprint 6 (Polimento e UI/UX):** Elevar a qualidade da interface gráfica e implementar regras avançadas de renderização. 
 -  [ ] **Sprint 7 (Deploy em Nuvem, Polimento Final):** Retirar a aplicação do ambiente local de desenvolvimento (`localhost`) e disponibilizá-la publicamente na internet, alta performance e persistência de dados contínua, além de realizar testes ponta a ponta e ajustes finais de responsividade no Front-End. 
 ---
----
 *Desenvolvido por Evandio de Souza Filho com auxílio de Inteligência Artificial.*
