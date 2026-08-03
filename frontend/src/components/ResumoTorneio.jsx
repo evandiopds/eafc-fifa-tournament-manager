@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { toPng } from 'html-to-image';
+import { motion } from 'framer-motion';
 import { Trophy, Award, TrendingUp, Target, BarChart3, ShieldAlert, Sparkles, Scale, Download } from 'lucide-react';
 import { buscarTime } from '../utils/teamSearch';
 import escudoGen from '../assets/escudo_gen.svg';
@@ -193,7 +194,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
 
   const podio = obterPodio();
 
-  // 3. CÁLCULO DE ESTATÍSTICAS POR TIME (COM GOLS SOFRIDOS E SALDO)
+  // 3. CÁLCULO DE ESTATÍSTICAS POR TIME
   const calcularEstatisticas = () => {
     const mapaTimes = {};
 
@@ -287,7 +288,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
     });
     const jogoMaiorGoleada = jogosOrdenadosGoleada[0];
 
-    // Badge Dinâmica do Massacre/Surra/Goleada
+    // Badge Dinâmica
     let tagGoleada = 'MAIOR GOLEADA';
     let corGoleada = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
     if (jogoMaiorGoleada) {
@@ -301,7 +302,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
       }
     }
 
-    // 2. Defesa de Ferro (Menor média de gols sofridos)
+    // 2. Defesa de Ferro
     const timesOrdenadosDefesa = [...statsTimes].sort((a, b) => {
       if (Number(a.mediaSofridos) !== Number(b.mediaSofridos)) {
         return Number(a.mediaSofridos) - Number(b.mediaSofridos);
@@ -311,7 +312,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
     });
     const timeDefesaFerro = timesOrdenadosDefesa[0];
 
-    // 3. Chuva de Gols (Partida com mais gols somados)
+    // 3. Chuva de Gols
     const jogosOrdenadosChuva = [...jogosFinalizados].sort((a, b) => {
       const totalA = Number(a.gols_casa) + Number(a.gols_visitante);
       const totalB = Number(b.gols_casa) + Number(b.gols_visitante);
@@ -323,11 +324,11 @@ export default function ResumoTorneio({ dadosTorneio }) {
 
       const diffA = Math.abs(Number(a.gols_casa) - Number(a.gols_visitante));
       const diffB = Math.abs(Number(b.gols_casa) - Number(b.gols_visitante));
-      return diffA - diffB; // Prioriza jogo mais equilibrado
+      return diffA - diffB;
     });
     const jogoChuvaGols = jogosOrdenadosChuva[0];
 
-    // 4. Rei do Empate (Time com mais empates)
+    // 4. Rei do Empate
     const timesOrdenadosEmpate = [...statsTimes].sort((a, b) => {
       if (b.empates !== a.empates) return b.empates - a.empates;
       if (b.jogos !== a.jogos) return b.jogos - a.jogos;
@@ -347,7 +348,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
 
   const destaques = calcularDestaques();
 
-  // Ordenação para os Rankings Táticos
+  // Ordenação para os Rankings Táticos (Travado em Top 5)
   const rankingTaxaVitoria = [...statsTimes].sort((a, b) => Number(b.taxaVitoria) - Number(a.taxaVitoria)).slice(0, 5);
   const rankingMediaGols = [...statsTimes].sort((a, b) => Number(b.mediaGols) - Number(a.mediaGols)).slice(0, 5);
   const totalGolsTorneio = statsTimes.reduce((acc, curr) => acc + curr.golsPro, 0);
@@ -388,11 +389,14 @@ export default function ResumoTorneio({ dadosTorneio }) {
   };
 
   return (
-    <div
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.35 }}
       ref={resumoRef}
       className="w-full bg-slate-900/95 border border-slate-700/80 rounded-md p-6 sm:p-8 shadow-2xl space-y-10 mt-6"
     >
-      {/* Cabeçalho de Encerramento com Botão Tático de Download */}
+      {/* Cabeçalho de Encerramento */}
       <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-800 pb-5 gap-4">
         <div className="text-center sm:text-left">
           <div className="inline-flex items-center justify-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1 rounded-sm text-emerald-400 text-xs font-black uppercase tracking-widest mb-2">
@@ -419,10 +423,15 @@ export default function ResumoTorneio({ dadosTorneio }) {
         </button>
       </div>
 
-      {/* PÓDIO OFICIAL (OURO, PRATA, BRONZE) */}
+      {/* PÓDIO OFICIAL COM ENTRADA EM CASCATA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 2º LUGAR (PRATA) */}
-        <div className="bg-slate-950/80 border border-slate-400/40 rounded-md p-5 flex flex-col items-center justify-center text-center relative overflow-hidden order-2 md:order-1">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+          className="bg-slate-950/80 border border-slate-400/40 rounded-md p-5 flex flex-col items-center justify-center text-center relative overflow-hidden order-2 md:order-1"
+        >
           <div className="absolute top-0 right-0 bg-slate-400/20 px-2.5 py-1 rounded-bl-sm text-[10px] font-black uppercase tracking-widest text-slate-300">
             Prata
           </div>
@@ -437,10 +446,15 @@ export default function ResumoTorneio({ dadosTorneio }) {
               {podio.vice.jogador}
             </p>
           )}
-        </div>
+        </motion.div>
 
-        {/* 1º LUGAR (OURO) */}
-        <div className="bg-amber-500/10 border-2 border-amber-500/70 rounded-md p-6 flex flex-col items-center justify-center text-center relative overflow-hidden order-1 md:order-2 shadow-lg shadow-amber-500/5 scale-105">
+        {/* 1º LUGAR (OURO - COM DESTAQUE EM ESCALA) */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1.05 }}
+          transition={{ duration: 0.35, delay: 0.05 }}
+          className="bg-amber-500/10 border-2 border-amber-500/70 rounded-md p-6 flex flex-col items-center justify-center text-center relative overflow-hidden order-1 md:order-2 shadow-lg shadow-amber-500/5"
+        >
           <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 px-3 py-1 rounded-bl-sm text-[10px] font-black uppercase tracking-widest">
             Campeão
           </div>
@@ -455,10 +469,15 @@ export default function ResumoTorneio({ dadosTorneio }) {
               {podio.campeao.jogador}
             </p>
           )}
-        </div>
+        </motion.div>
 
         {/* 3º LUGAR (BRONZE) */}
-        <div className="bg-slate-950/80 border border-amber-700/50 rounded-md p-5 flex flex-col items-center justify-center text-center relative overflow-hidden order-3">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.25 }}
+          className="bg-slate-950/80 border border-amber-700/50 rounded-md p-5 flex flex-col items-center justify-center text-center relative overflow-hidden order-3"
+        >
           <div className="absolute top-0 right-0 bg-amber-700/20 px-2.5 py-1 rounded-bl-sm text-[10px] font-black uppercase tracking-widest text-amber-500">
             Bronze
           </div>
@@ -473,11 +492,16 @@ export default function ResumoTorneio({ dadosTorneio }) {
               {podio.terceiro.jogador}
             </p>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* DESTAQUES & HONRA AO MÉRITO */}
-      <div className="space-y-4">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.35 }}
+        className="space-y-4"
+      >
         <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
           <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
           <h4 className="text-sm font-extrabold uppercase tracking-wider text-white">
@@ -576,10 +600,15 @@ export default function ResumoTorneio({ dadosTorneio }) {
             </div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* RANKINGS TÁTICOS (APROVEITAMENTO & OFENSIVIDADE) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.45 }}
+        className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2"
+      >
         {/* APROVEITAMENTO (% DE VITÓRIA) */}
         <div className="bg-slate-950/60 border border-slate-800 rounded-md p-5">
           <div className="flex items-center gap-2 border-b border-slate-800 pb-3 mb-4">
@@ -649,7 +678,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
             ))}
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

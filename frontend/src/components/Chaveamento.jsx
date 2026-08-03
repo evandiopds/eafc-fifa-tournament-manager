@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, CircleStar, LockKeyhole, FilePen, FileCheck, AlertTriangle, X } from 'lucide-react';
 import { buscarTime } from '../utils/teamSearch';
 import escudoGen from '../assets/escudo_gen.svg';
@@ -11,74 +12,104 @@ import ResumoTorneio from './ResumoTorneio';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
-// Busca e retorna o escudo oficial do time ou o ícone padrão
 function getEscudo(nomeTime) {
   if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') {
     return escudoOff || escudoGen;
   }
 
   const timeEncontrado = buscarTime(nomeTime);
-  if (!timeEncontrado || timeEncontrado.escudo === '/escudo-padrao.png') {
+  if (!timeEncontrado || !timeEncontrado.escudo || timeEncontrado.escudo === '/escudo-padrao.png') {
     return escudoGen;
   }
 
   return timeEncontrado.escudo;
 }
 
-// Modal customizado com geometria tática angular
+function getDadosParticipante(alvo) {
+  if (!alvo) return { clube: 'Aguardando', jogador: null, id: null };
+  if (typeof alvo === 'string') return { clube: alvo, jogador: null, id: null };
+
+  const clube = alvo.nome_clube || alvo.time || alvo.clube || 'Aguardando';
+  const id = alvo.participante_id || alvo.id || null;
+  let jogador = alvo.jogador || null;
+
+  if (!jogador && alvo.participantes) {
+    jogador = typeof alvo.participantes === 'string'
+      ? alvo.participantes
+      : Array.isArray(alvo.participantes)
+      ? alvo.participantes.map((p) => p.nome).join(' & ')
+      : null;
+  }
+
+  return { clube, jogador, id };
+}
+
 function ModalConfirmacao({ isOpen, onClose, onConfirm, titulo, mensagem, textoBotao = 'Confirmar', isAlerta = false }) {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-md p-5 shadow-2xl flex flex-col gap-4">
-        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-          <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm uppercase tracking-wider">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
-            <span>{titulo}</span>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-sm transition-colors"
+    <AnimatePresence>
+      {isOpen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.15 }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4"
+        >
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="w-full max-w-sm sm:max-w-md bg-slate-900 border border-slate-700 rounded-md p-4 sm:p-5 shadow-2xl flex flex-col gap-4"
           >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2 text-emerald-400 font-bold text-xs sm:text-sm uppercase tracking-wider">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+                <span>{titulo}</span>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-slate-400 hover:text-white p-1 rounded-sm transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-        <p className="text-slate-300 text-sm leading-relaxed">{mensagem}</p>
+            <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">{mensagem}</p>
 
-        <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
-          {!isAlerta && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-sm text-xs font-bold transition-all"
-            >
-              Cancelar
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => {
-              if (onConfirm) onConfirm();
-              onClose();
-            }}
-            className={`px-4 py-2 rounded-sm text-xs font-black uppercase transition-all shadow-md ${
-              isAlerta
-                ? 'bg-emerald-500 hover:bg-emerald-600 text-slate-950'
-                : 'bg-rose-600 hover:bg-rose-500 text-white'
-            }`}
-          >
-            {textoBotao}
-          </button>
-        </div>
-      </div>
-    </div>
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+              {!isAlerta && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-3 sm:px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-sm text-xs font-bold transition-all"
+                >
+                  Cancelar
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (onConfirm) onConfirm();
+                  onClose();
+                }}
+                className={`px-3 sm:px-4 py-2 rounded-sm text-xs font-black uppercase transition-all shadow-md ${
+                  isAlerta
+                    ? 'bg-amber-500 hover:bg-amber-600 text-slate-950'
+                    : 'bg-rose-600 hover:bg-rose-500 text-white'
+                }`}
+              >
+                {textoBotao}
+              </button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
-// Card individual da partida com formato angular
 function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado, isEliminatorio = false }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
@@ -89,8 +120,8 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   const [statusMsg, setStatusMsg] = useState(null);
   const [carregando, setCarregando] = useState(false);
 
-  const nomeCasa = typeof jogo.casa === 'string' ? jogo.casa : jogo.casa?.time || jogo.time || 'Aguardando';
-  const nomeFora = typeof jogo.fora === 'string' ? jogo.fora : jogo.fora?.time || jogo.visitante?.time || 'Aguardando';
+  const { clube: nomeCasa, jogador: partCasa } = getDadosParticipante(jogo.casa || jogo.time);
+  const { clube: nomeFora, jogador: partFora } = getDadosParticipante(jogo.fora || jogo.visitante);
 
   const isAguardando = nomeCasa === 'Aguardando' || nomeFora === 'Aguardando';
   const bloqueado = isAguardando || isBloqueado;
@@ -164,12 +195,18 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
 
       setStatusMsg({ erro: false, texto: 'Salvo!' });
       setEmModoEdicao(false);
-      if (onPlacarSalvo) onPlacarSalvo(resp.data);
+      if (onPlacarSalvo) onPlacarSalvo(resp.data, casaGols, foraGols, casaPen, foraPen);
     } catch (err) {
-      setStatusMsg({
-        erro: true,
-        texto: err.response?.data?.detail || 'Erro ao salvar',
-      });
+      if (rodadaOuFase === 'Rodada D') {
+        setStatusMsg({ erro: false, texto: 'Salvo!' });
+        setEmModoEdicao(false);
+        if (onPlacarSalvo) onPlacarSalvo(null, casaGols, foraGols, casaPen, foraPen);
+      } else {
+        setStatusMsg({
+          erro: true,
+          texto: err.response?.data?.detail || 'Erro ao salvar',
+        });
+      }
     } finally {
       setCarregando(false);
     }
@@ -214,23 +251,12 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     salvarNoBackend(gCasa, gFora);
   };
 
-  const partCasa =
-    typeof jogo.casa !== 'string' && jogo.casa?.participantes
-      ? typeof jogo.casa.participantes === 'string'
-        ? jogo.casa.participantes
-        : jogo.casa.participantes.map((p) => p.nome).join(' & ')
-      : null;
-
-  const partFora =
-    typeof jogo.fora !== 'string' && jogo.fora?.participantes
-      ? typeof jogo.fora.participantes === 'string'
-        ? jogo.fora.participantes
-        : jogo.fora.participantes.map((p) => p.nome).join(' & ')
-      : null;
-
   return (
-    <div
-      className={`w-72 bg-slate-800/90 border rounded-md p-3 flex flex-col gap-2 shadow-md transition-all ${
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, delay: Math.min((idx || 0) * 0.04, 0.3) }}
+      className={`w-72 bg-slate-800/90 border rounded-md p-3 flex flex-col gap-2 shadow-md transition-colors ${
         bloqueado ? 'border-slate-700/50 bg-slate-900/40 opacity-75' : 'border-slate-700 hover:border-slate-500'
       }`}
     >
@@ -245,7 +271,9 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
             src={getEscudo(nomeCasa)}
             alt={nomeCasa}
             onError={(e) => {
-              e.target.src = isAguardando ? escudoOff : escudoGen;
+              e.target.src = (!nomeCasa || nomeCasa === 'Aguardando' || nomeCasa === 'A definir') 
+                ? (escudoOff || escudoGen) 
+                : escudoGen;
             }}
             className="w-7 h-7 object-contain shrink-0"
           />
@@ -279,7 +307,9 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
             src={getEscudo(nomeFora)}
             alt={nomeFora}
             onError={(e) => {
-              e.target.src = isAguardando ? escudoOff : escudoGen;
+              e.target.src = (!nomeFora || nomeFora === 'Aguardando' || nomeFora === 'A definir') 
+                ? (escudoOff || escudoGen) 
+                : escudoGen;
             }}
             className="w-7 h-7 object-contain shrink-0"
           />
@@ -387,17 +417,17 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           {statusMsg.texto}
         </p>
       )}
-    </div>
+    </motion.div>
   );
 }
 
-// Componente principal do chaveamento
 export default function Chaveamento({ torneio, dadosSorteados }) {
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
   const [dadosTorneio, setDadosTorneio] = useState(dadosSorteados);
   const [prevSorteados, setPrevSorteados] = useState(dadosSorteados);
   const [statusTorneio, setStatusTorneio] = useState(torneio?.status || 'ativo');
   const [abaCopa, setAbaCopa] = useState('grupos');
+  const [jogosDesempateLocal, setJogosDesempateLocal] = useState({});
 
   const [modalOpen, setModalOpen] = useState(false);
   const [modalConfig, setModalConfig] = useState({});
@@ -419,6 +449,127 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
 
   const { formato_torneio, chaveamento, classificacao = [] } = dadosTorneio;
   const isFinalizado = statusTorneio === 'finalizado';
+
+  const verificarEmpateTopo = () => {
+    if (formato_torneio !== 'pontos_corridos' || !classificacao || classificacao.length < 2) {
+      return { existe: false, times: [] };
+    }
+
+    const tabelaNormais = (chaveamento?.tabela || []).filter((j) => j.rodada !== 'D' && j.rodada !== 'Desempate');
+    const todasNormaisFinalizadas = tabelaNormais.length > 0 && tabelaNormais.every(
+      (j) => j.gols_casa !== '' && j.gols_casa != null && j.gols_visitante !== '' && j.gols_visitante != null
+    );
+
+    if (!todasNormaisFinalizadas) {
+      return { existe: false, times: [] };
+    }
+
+    const t1 = classificacao[0];
+    const t2 = classificacao[1];
+    if (!t1 || !t2 || (t1.pontos === 0 && t1.jogos === 0)) {
+      return { existe: false, times: [] };
+    }
+
+    const getPontosConfronto = (timeA, timeB) => {
+      let ptsA = 0;
+      let ptsB = 0;
+      tabelaNormais.forEach((jogo) => {
+        const casaNome = typeof jogo.casa === 'string' ? jogo.casa : jogo.casa?.time || jogo.time;
+        const foraNome = typeof jogo.fora === 'string' ? jogo.fora : jogo.fora?.time || jogo.visitante?.time;
+
+        const envolveA = casaNome === timeA.nome_clube || foraNome === timeA.nome_clube;
+        const envolveB = casaNome === timeB.nome_clube || foraNome === timeB.nome_clube;
+
+        if (envolveA && envolveB) {
+          const gCasa = Number(jogo.gols_casa);
+          const gFora = Number(jogo.gols_visitante);
+          if (casaNome === timeA.nome_clube) {
+            if (gCasa > gFora) ptsA += 3;
+            else if (gFora > gCasa) ptsB += 3;
+            else { ptsA += 1; ptsB += 1; }
+          } else {
+            if (gFora > gCasa) ptsA += 3;
+            else if (gCasa > gFora) ptsB += 3;
+            else { ptsA += 1; ptsB += 1; }
+          }
+        }
+      });
+      return { ptsA, ptsB };
+    };
+
+    const { ptsA: ptsT1vsT2, ptsB: ptsT2vsT1 } = getPontosConfronto(t1, t2);
+    const confrontoEmpatado = ptsT1vsT2 === ptsT2vsT1;
+
+    const empateAbsoluto =
+      t1.pontos === t2.pontos &&
+      confrontoEmpatado &&
+      t1.saldo_gols === t2.saldo_gols &&
+      t1.gols_pro === t2.gols_pro;
+
+    if (!empateAbsoluto) return { existe: false, times: [] };
+
+    const t3 = classificacao[2];
+    let empateTriplo = false;
+    if (t3 && t3.pontos === t1.pontos && t3.saldo_gols === t1.saldo_gols && t3.gols_pro === t1.gols_pro) {
+      const { ptsA: pts1vs3, ptsB: pts3vs1 } = getPontosConfronto(t1, t3);
+      const { ptsA: pts2vs3, ptsB: pts3vs2 } = getPontosConfronto(t2, t3);
+      empateTriplo = (pts1vs3 === pts3vs1) && (pts2vs3 === pts3vs2);
+    }
+
+    return {
+      existe: true,
+      times: empateTriplo ? [t1, t2, t3] : [t1, t2],
+      triplo: empateTriplo,
+    };
+  };
+
+  const infoEmpateTopo = verificarEmpateTopo();
+
+  const obterJogosDesempate = () => {
+    const tabela = chaveamento.tabela || [];
+    const jogosBackend = tabela.filter((j) => j.rodada === 'D' || j.rodada === 'Desempate');
+    if (jogosBackend.length > 0) return jogosBackend;
+
+    if (!infoEmpateTopo.existe) return [];
+
+    const timesD = infoEmpateTopo.times;
+    if (timesD.length === 2) {
+      const idPar = 'desempate-topo-1';
+      return [
+        jogosDesempateLocal[idPar] || {
+          id: idPar,
+          rodada: 'D',
+          casa: { time: timesD[0].nome_clube, participantes: timesD[0].jogador },
+          fora: { time: timesD[1].nome_clube, participantes: timesD[1].jogador },
+          gols_casa: '',
+          gols_visitante: '',
+          penaltis_casa: '',
+          penaltis_visitante: '',
+          isDesempate: true,
+        },
+      ];
+    }
+
+    return [
+      { tA: timesD[0], tB: timesD[1], id: 'desempate-topo-1' },
+      { tA: timesD[1], tB: timesD[2], id: 'desempate-topo-2' },
+      { tA: timesD[0], tB: timesD[2], id: 'desempate-topo-3' },
+    ].map((item) => {
+      return (
+        jogosDesempateLocal[item.id] || {
+          id: item.id,
+          rodada: 'D',
+          casa: { time: item.tA.nome_clube, participantes: item.tA.jogador },
+          fora: { time: item.tB.nome_clube, participantes: item.tB.jogador },
+          gols_casa: '',
+          gols_visitante: '',
+          penaltis_casa: '',
+          penaltis_visitante: '',
+          isDesempate: true,
+        }
+      );
+    });
+  };
 
   const handleAtualizarDados = (respostaApi) => {
     if (respostaApi?.dados_sorteados) {
@@ -458,6 +609,27 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
 
   const handleFinalizar = () => {
     const isGrupos = formato_torneio === 'copa' && statusTorneio === 'fase_grupos';
+
+    if (formato_torneio === 'pontos_corridos' && infoEmpateTopo.existe) {
+      const jogosD = obterJogosDesempate();
+      const desempatePendente = jogosD.some(
+        (j) => j.gols_casa === '' || j.gols_casa == null || j.gols_visitante === '' || j.gols_visitante == null
+      );
+
+      if (desempatePendente) {
+        setModalConfig({
+          titulo: 'Desempate Pendente!',
+          mensagem:
+            'As partidas da Rodada de Desempate (D) ainda não foram preenchidas! Você pode preencher os placares para definir o campeão no campo ou encerrar agora e deixar o sistema decidir o vencedor na sorte.',
+          textoBotao: 'Encerrar na Sorte',
+          isAlerta: true,
+          onConfirm: handleConfirmarFinalizacao,
+        });
+        setModalOpen(true);
+        return;
+      }
+    }
+
     setModalConfig({
       titulo: isGrupos ? 'Finalizar Fase de Grupos' : 'Finalizar Torneio',
       mensagem: isGrupos
@@ -470,7 +642,6 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     setModalOpen(true);
   };
 
-  // Árvore eliminatória
   const renderArvoreEliminatoria = (arvoreDados, isBloqueadoPorFase = false) => {
     const arvoreProcessada = {};
     
@@ -514,8 +685,8 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     }
 
     return (
-      <div className="overflow-x-auto pb-8 pt-2">
-        <div className="flex items-stretch justify-start md:justify-center gap-8 min-w-max px-4">
+      <div className="overflow-x-auto pb-8 pt-2 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <div className="flex items-stretch justify-start md:justify-center gap-6 sm:gap-8 min-w-max">
           {fases.map((nomeFase) => (
             <div key={nomeFase} className="flex flex-col justify-around gap-6 relative">
               <div className="text-center pb-2 border-b border-slate-700/80 mb-2">
@@ -587,7 +758,6 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   };
 
-  // Estrutura do Modo Copa
   const renderCopa = () => {
     const grupos = chaveamento.grupos || {};
     const arvoreMataMata = chaveamento.arvore || {};
@@ -601,7 +771,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
             <button
               type="button"
               onClick={() => setAbaCopa('grupos')}
-              className={`px-6 py-2 rounded-sm text-xs font-black uppercase tracking-wider transition-all ${
+              className={`text-[11px] sm:text-xs px-4 sm:px-6 py-2 rounded-sm font-black uppercase tracking-wider transition-all ${
                 abaCopa === 'grupos'
                   ? 'bg-emerald-500 text-slate-950 shadow-md'
                   : 'text-slate-400 hover:text-white'
@@ -612,7 +782,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
             <button
               type="button"
               onClick={() => setAbaCopa('mata_mata')}
-              className={`flex items-center justify-center gap-1.5 px-6 py-2 rounded-sm text-xs font-black uppercase tracking-wider transition-all ${
+              className={`flex items-center justify-center gap-1.5 text-[11px] sm:text-xs px-4 sm:px-6 py-2 rounded-sm font-black uppercase tracking-wider transition-all ${
                 abaCopa === 'mata_mata'
                   ? 'bg-emerald-500 text-slate-950 shadow-md'
                   : 'text-slate-400 hover:text-white'
@@ -624,62 +794,82 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           </div>
         </div>
 
-        {abaCopa === 'grupos' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {nomesGrupos.map((nomeGrupo) => {
-              const tabelaGrupo = Array.isArray(classificacao)
-                ? classificacao
-                : classificacao[nomeGrupo] || [];
+        <AnimatePresence mode="wait">
+          {abaCopa === 'grupos' ? (
+            <motion.div
+              key="grupos"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+            >
+              {nomesGrupos.map((nomeGrupo) => {
+                const tabelaGrupo = Array.isArray(classificacao)
+                  ? classificacao
+                  : classificacao[nomeGrupo] || [];
 
-              return (
-                <div key={nomeGrupo} className="bg-slate-800/90 border border-slate-700 rounded-md overflow-hidden shadow-xl flex flex-col justify-between">
-                  <div>
-                    <div className="bg-slate-900/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
-                      <h4 className="font-extrabold text-emerald-400 uppercase tracking-wider text-sm">{nomeGrupo}</h4>
+                return (
+                  <div key={nomeGrupo} className="bg-slate-800/90 border border-slate-700 rounded-md overflow-hidden shadow-xl flex flex-col justify-between">
+                    <div>
+                      <div className="bg-slate-900/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
+                        <h4 className="font-extrabold text-emerald-400 uppercase tracking-wider text-sm">{nomeGrupo}</h4>
+                      </div>
+                      <div className="p-4 space-y-3 flex flex-col items-center">
+                        {grupos[nomeGrupo].map((item, idx) => (
+                          <CardPartida 
+                            key={`${item.id || idx}-${item.gols_casa}-${item.gols_visitante}`} 
+                            idx={idx} 
+                            jogo={item} 
+                            formato={formato_torneio} 
+                            rodadaOuFase={nomeGrupo}
+                            torneioId={torneio?.id}
+                            onPlacarSalvo={handleAtualizarDados}
+                            isBloqueado={!inFaseGrupos || isFinalizado}
+                            isEliminatorio={false}
+                          />
+                        ))}
+                      </div>
                     </div>
-                    <div className="p-4 space-y-3 flex flex-col items-center">
-                      {grupos[nomeGrupo].map((item, idx) => (
-                        <CardPartida 
-                          key={`${item.id || idx}-${item.gols_casa}-${item.gols_visitante}`} 
-                          idx={idx} 
-                          jogo={item} 
-                          formato={formato_torneio} 
-                          rodadaOuFase={nomeGrupo}
-                          torneioId={torneio?.id}
-                          onPlacarSalvo={handleAtualizarDados}
-                          isBloqueado={!inFaseGrupos || isFinalizado}
-                          isEliminatorio={false}
-                        />
-                      ))}
+
+                    <div className="p-3 border-t border-slate-700/60 bg-slate-900/40">
+                      <TabelaClassificacao 
+                        classificacao={tabelaGrupo} 
+                        formato="copa" 
+                        nomeGrupo={nomeGrupo} 
+                      />
                     </div>
                   </div>
-
-                  <div className="p-3 border-t border-slate-700/60 bg-slate-900/40">
-                    <TabelaClassificacao classificacao={tabelaGrupo} />
-                  </div>
+                );
+              })}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="mata_mata"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              {inFaseGrupos && (
+                <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-sm text-amber-300 text-xs text-center font-bold">
+                  Conclua e finalize a Fase de Grupos para habilitar os jogos do Mata-Mata!
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div>
-            {inFaseGrupos && (
-              <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-sm text-amber-300 text-xs text-center font-bold">
-                Conclua e finalize a Fase de Grupos para habilitar os jogos do Mata-Mata!
-              </div>
-            )}
-            {renderArvoreEliminatoria(arvoreMataMata, inFaseGrupos)}
-          </div>
-        )}
+              )}
+              {renderArvoreEliminatoria(arvoreMataMata, inFaseGrupos)}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     );
   };
 
-  // Pontos Corridos
   const renderPontosCorridos = () => {
     const tabela = chaveamento.tabela || [];
     const totalRodadas = chaveamento.total_rodadas || 1;
-    const jogosRodada = tabela.filter((jogo) => jogo.rodada === rodadaSelecionada);
+    const isRodadaD = rodadaSelecionada === 'D';
+
+    const jogosRodada = isRodadaD ? obterJogosDesempate() : tabela.filter((jogo) => jogo.rodada === rodadaSelecionada);
 
     return (
       <div className="space-y-6">
@@ -689,12 +879,14 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           </h3>
         </div>
 
-        <div className="flex items-center justify-center gap-2 overflow-x-auto py-2">
+        {/* Seletor de Rodadas adaptado para touch mobile e telas estreitas */}
+        <div className="w-full max-w-full overflow-x-auto pb-2 px-1 flex items-center justify-start sm:justify-center gap-2">
           {Array.from({ length: totalRodadas }, (_, i) => i + 1).map((num) => (
             <button
               key={num}
+              type="button"
               onClick={() => setRodadaSelecionada(num)}
-              className={`px-3.5 py-2 rounded-sm text-xs font-extrabold transition-all ${
+              className={`px-3.5 py-2 rounded-sm text-xs font-extrabold shrink-0 transition-all ${
                 rodadaSelecionada === num
                   ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20'
                   : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'
@@ -703,25 +895,86 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
               {num}ª
             </button>
           ))}
+
+          {infoEmpateTopo.existe && (
+            <button
+              type="button"
+              onClick={() => setRodadaSelecionada('D')}
+              className={`px-4 py-2 rounded-sm text-xs font-black uppercase tracking-wider shrink-0 transition-all ${
+                isRodadaD
+                  ? 'bg-amber-500 text-slate-950 shadow-lg shadow-amber-500/20'
+                  : 'bg-slate-900 text-amber-400 border border-amber-500/50 hover:bg-amber-500/10'
+              }`}
+              title="Rodada Extra de Desempate pelo Título"
+            >
+              D
+            </button>
+          )}
         </div>
 
-        <div className="space-y-3 flex flex-col items-center">
-          {jogosRodada.map((jogo, idx) => (
-            <CardPartida 
-              key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`} 
-              idx={idx} 
-              jogo={jogo} 
-              formato={formato_torneio} 
-              rodadaOuFase={`Rodada ${jogo.rodada}`}
-              torneioId={torneio?.id}
-              onPlacarSalvo={handleAtualizarDados}
-              isBloqueado={isFinalizado}
-              isEliminatorio={false}
-            />
-          ))}
-        </div>
+        <AnimatePresence>
+          {isRodadaD && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              className="w-full max-w-2xl mx-auto bg-amber-500/10 border-l-4 border-amber-500 p-4 rounded-r-sm text-amber-200 text-xs leading-relaxed shadow-md"
+            >
+              <div className="flex items-center gap-2 font-black uppercase tracking-wider text-amber-400 mb-1.5">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>Rodada de Desempate (Empate Absoluto)</span>
+              </div>
+              <p>
+                Essa rodada surgiu devido a um empate absoluto entre duas equipes, infelizmente é impossível para o sistema decidir que será o campeão devido a todos os critérios do sistema terem sido igualados entre duas equipes.
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        <TabelaClassificacao classificacao={classificacao} />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={rodadaSelecionada}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.18 }}
+            className="space-y-3 flex flex-col items-center"
+          >
+            {jogosRodada.map((jogo, idx) => (
+              <CardPartida 
+                key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`} 
+                idx={idx} 
+                jogo={jogo} 
+                formato={formato_torneio} 
+                rodadaOuFase={isRodadaD ? 'Rodada D' : `Rodada ${jogo.rodada}`}
+                torneioId={torneio?.id}
+                onPlacarSalvo={(resp, gCasa, gFora, pCasa, pFora) => {
+                  handleAtualizarDados(resp);
+                  if (isRodadaD) {
+                    setJogosDesempateLocal((prev) => ({
+                      ...prev,
+                      [jogo.id]: {
+                        ...jogo,
+                        gols_casa: gCasa,
+                        gols_visitante: gFora,
+                        penaltis_casa: pCasa,
+                        penaltis_visitante: pFora,
+                        status: 'finalizada',
+                      },
+                    }));
+                  }
+                }}
+                isBloqueado={isFinalizado}
+                isEliminatorio={isRodadaD}
+              />
+            ))}
+          </motion.div>
+        </AnimatePresence>
+
+        <TabelaClassificacao 
+          classificacao={classificacao} 
+          formato="pontos_corridos" 
+        />
       </div>
     );
   };
@@ -732,26 +985,39 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
       {formato_torneio === 'pontos_corridos' && renderPontosCorridos()}
       {formato_torneio === 'mata_mata' && renderArvoreEliminatoria(chaveamento.arvore, isFinalizado)}
 
-      {/* RENDERIZAÇÃO AUTOMÁTICA DO PÓDIO SE FINALIZADO OU BOTÃO DE FINALIZAR SE ATIVO */}
-      {isFinalizado ? (
-        <ResumoTorneio dadosTorneio={dadosTorneio} />
-      ) : (
-        <div className="flex justify-center pt-4 border-t border-slate-700/60">
-          <button
-            onClick={handleFinalizar}
-            className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider px-6 py-3 rounded-md shadow-lg transition-all"
+      <AnimatePresence mode="wait">
+        {isFinalizado ? (
+          <motion.div
+            key="resumo-torneio"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, ease: 'easeOut' }}
           >
-            <img src={whistleIcon} alt="Apito" className="w-4 h-4 shrink-0" />
-            <span>
-              {formato_torneio === 'copa' && statusTorneio === 'fase_grupos'
-                ? 'Finalizar Fase de Grupos'
-                : 'Finalizar Torneio'}
-            </span>
-          </button>
-        </div>
-      )}
+            <ResumoTorneio dadosTorneio={dadosTorneio} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="botao-finalizar"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="flex justify-center pt-4 border-t border-slate-700/60"
+          >
+            <button
+              onClick={handleFinalizar}
+              className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider px-6 py-3 rounded-md shadow-lg transition-all"
+            >
+              <img src={whistleIcon} alt="Apito" className="w-4 h-4 shrink-0" />
+              <span>
+                {formato_torneio === 'copa' && statusTorneio === 'fase_grupos'
+                  ? 'Finalizar Fase de Grupos'
+                  : 'Finalizar Torneio'}
+              </span>
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {/* Modal Customizado */}
       <ModalConfirmacao
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
