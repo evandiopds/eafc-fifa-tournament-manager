@@ -7,6 +7,7 @@ import escudoOff from '../assets/escudo_off.svg';
 import whistleIcon from '../assets/whistle.svg';
 import penaltyIcon from '../assets/penalty.svg';
 import TabelaClassificacao from './TabelaClassificacao';
+import ResumoTorneio from './ResumoTorneio';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
@@ -731,8 +732,10 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
       {formato_torneio === 'pontos_corridos' && renderPontosCorridos()}
       {formato_torneio === 'mata_mata' && renderArvoreEliminatoria(chaveamento.arvore, isFinalizado)}
 
-      {/* Botão para finalizar fase ou encerrar o torneio */}
-      {!isFinalizado ? (
+      {/* RENDERIZAÇÃO AUTOMÁTICA DO PÓDIO SE FINALIZADO OU BOTÃO DE FINALIZAR SE ATIVO */}
+      {isFinalizado ? (
+        <ResumoTorneio dadosTorneio={dadosTorneio} />
+      ) : (
         <div className="flex justify-center pt-4 border-t border-slate-700/60">
           <button
             onClick={handleFinalizar}
@@ -745,10 +748,6 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                 : 'Finalizar Torneio'}
             </span>
           </button>
-        </div>
-      ) : (
-        <div className="text-center py-4 bg-slate-800/80 border border-slate-700 rounded-md text-emerald-400 font-bold text-sm">
-          ✓ Torneio Finalizado
         </div>
       )}
 
