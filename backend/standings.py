@@ -5,48 +5,77 @@ import database
 
 
 # Cria o comparador com a hierarquia oficial: Pontos > Confronto Direto > Saldo de Gols > Gols Pró
-def criar_comparador(historico_confrontos: dict):
+def criar_comparador(confrontos: dict):
     def comparar_times(a, b):
+        # 1. Pontos gerais
         if a["pontos"] != b["pontos"]:
             return b["pontos"] - a["pontos"]
-            
-        chave_ab = (a["participante_id"], b["participante_id"])
-        chave_ba = (b["participante_id"], a["participante_id"])
-        
-        if chave_ab in historico_confrontos:
-            vencedor_id = historico_confrontos[chave_ab]
-            if vencedor_id == a["participante_id"]:
-                return -1
-            elif vencedor_id == b["participante_id"]:
-                return 1
-        elif chave_ba in historico_confrontos:
-            vencedor_id = historico_confrontos[chave_ba]
-            if vencedor_id == a["participante_id"]:
-                return -1
-            elif vencedor_id == b["participante_id"]:
-                return 1
 
+        id_a = a["participante_id"]
+        id_b = b["participante_id"]
+
+        # 2. Confronto Direto (compara o total de pontos somados no duelo direto entre A e B)
+        pts_a_contra_b = confrontos[id_a][id_b]
+        pts_b_contra_a = confrontos[id_b][id_a]
+        if pts_a_contra_b != pts_b_contra_a:
+            return pts_b_contra_a - pts_a_contra_b
+
+        # 3. Saldo de Gols (SG)
         if a["saldo_gols"] != b["saldo_gols"]:
             return b["saldo_gols"] - a["saldo_gols"]
 
+        # 4. Gols Pró (GP)
         return b["gols_pro"] - a["gols_pro"]
 
     return comparar_times
 
 
+# Atribui o critério oficial que desempata times com a mesma pontuação para exibição no Frontend
+def _atribuir_motivos_desempate(tabela_ordenada: list, confrontos: dict, formato: str):
+    n = len(tabela_ordenada)
+    for i in range(n):
+        time = tabela_ordenada[i]
+        motivo = None
+
+        # Compara com vizinhos na tabela para identificar se houve empate em pontos
+        vizinhos = []
+        if i > 0 and tabela_ordenada[i - 1]["pontos"] == time["pontos"] and time["pontos"] > 0:
+            vizinhos.append(tabela_ordenada[i - 1])
+        if i < n - 1 and tabela_ordenada[i + 1]["pontos"] == time["pontos"] and time["pontos"] > 0:
+            vizinhos.append(tabela_ordenada[i + 1])
+
+        if vizinhos:
+            # Identifica qual critério separou este time do seu rival direto
+            rival = vizinhos[0]
+            id_time = time["participante_id"]
+            id_rival = rival["participante_id"]
+
+            if confrontos[id_time][id_rival] != confrontos[id_rival][id_time]:
+                motivo = "Confronto Direto"
+            elif time["saldo_gols"] != rival["saldo_gols"]:
+                motivo = "SG (Saldo de Gols)"
+            elif time["gols_pro"] != rival["gols_pro"]:
+                motivo = "GP (Gols Pró)"
+            else:
+                motivo = "Sorteio" if formato == "copa" else "Rodada Extra / Sorteio"
+
+        time["motivo_desempate"] = motivo
+
+
 # Ordena a lista de times aplicando os critérios de desempate e define a posição de cada um
-def ordenar_classificacao(tabela_times: list, historico_confrontos: dict) -> list:
+def ordenar_classificacao(tabela_times: list, confrontos: dict, formato: str = "pontos_corridos") -> list:
     if not tabela_times:
         return []
 
     tabela_ordenada = sorted(
         tabela_times,
-        key=cmp_to_key(criar_comparador(historico_confrontos))
+        key=cmp_to_key(criar_comparador(confrontos))
     )
-    
+
     for posicao, time in enumerate(tabela_ordenada, start=1):
         time["posicao"] = posicao
 
+    _atribuir_motivos_desempate(tabela_ordenada, confrontos, formato)
     return tabela_ordenada
 
 
@@ -64,18 +93,20 @@ def _inicializar_stats(p: database.Participante) -> dict:
         "derrotas": 0,
         "gols_pro": 0,
         "gols_contra": 0,
-        "saldo_gols": 0
+        "saldo_gols": 0,
+        "motivo_desempate": None
     }
 
 
-# Processa os placares finalizados e atualiza pontuações, saldo de gols e confronto direto
+# Processa os placares finalizados e calcula pontos gerais, saldo e pontos de confronto direto
 def _processar_partidas(partidas: list, stats: dict) -> dict:
-    historico_confrontos = {}
+    # confrontos[id_casa][id_fora] = pontos conquistados pelo time casa contra o fora
+    confrontos = defaultdict(lambda: defaultdict(int))
 
     for pt in partidas:
         c_id = pt.time_casa_id
         f_id = pt.time_fora_id
-        
+
         if c_id not in stats or f_id not in stats:
             continue
 
@@ -93,23 +124,24 @@ def _processar_partidas(partidas: list, stats: dict) -> dict:
             stats[c_id]["pontos"] += 3
             stats[c_id]["vitorias"] += 1
             stats[f_id]["derrotas"] += 1
-            historico_confrontos[(c_id, f_id)] = c_id
+            confrontos[c_id][f_id] += 3
         elif g_fora > g_casa:
             stats[f_id]["pontos"] += 3
             stats[f_id]["vitorias"] += 1
             stats[c_id]["derrotas"] += 1
-            historico_confrontos[(c_id, f_id)] = f_id
+            confrontos[f_id][c_id] += 3
         else:
             stats[c_id]["pontos"] += 1
             stats[f_id]["pontos"] += 1
             stats[c_id]["empates"] += 1
             stats[f_id]["empates"] += 1
-            historico_confrontos[(c_id, f_id)] = None
+            confrontos[c_id][f_id] += 1
+            confrontos[f_id][c_id] += 1
 
     for time_id in stats:
         stats[time_id]["saldo_gols"] = stats[time_id]["gols_pro"] - stats[time_id]["gols_contra"]
 
-    return historico_confrontos
+    return confrontos
 
 
 # Gera a tabela de classificação (geral para Pontos Corridos ou separada por grupos na Copa)
@@ -118,7 +150,7 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str):
     participantes = db.query(database.Participante).filter(
         database.Participante.torneio_id == torneio_id
     ).all()
-    
+
     partidas_finalizadas = db.query(database.Partida).filter(
         database.Partida.torneio_id == torneio_id,
         database.Partida.status == "finalizada"
@@ -131,7 +163,7 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str):
         todas_partidas = db.query(database.Partida).filter(
             database.Partida.torneio_id == torneio_id
         ).all()
-        
+
         mapa_grupos = defaultdict(list)
         time_para_grupo = {}
 
@@ -151,14 +183,14 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str):
             stats_grupo = {p.id: _inicializar_stats(p) for p in membros}
             partidas_grupo = [pt for pt in partidas_finalizadas if pt.fase == grupo_nome]
             historico = _processar_partidas(partidas_grupo, stats_grupo)
-            tabelas_por_grupo[grupo_nome] = ordenar_classificacao(list(stats_grupo.values()), historico)
+            tabelas_por_grupo[grupo_nome] = ordenar_classificacao(list(stats_grupo.values()), historico, "copa")
 
         return dict(tabelas_por_grupo)
 
     stats = {p.id: _inicializar_stats(p) for p in participantes}
     historico = _processar_partidas(partidas_finalizadas, stats)
-    
-    return ordenar_classificacao(list(stats.values()), historico)
+
+    return ordenar_classificacao(list(stats.values()), historico, "pontos_corridos")
 
 
 # Seleciona os classificados da Fase de Grupos (Top 2 + Melhores 3ºs) e preenche a chave do Mata-Mata
@@ -190,7 +222,7 @@ def avancar_classificados_copa(db: Session, torneio_id: str) -> bool:
     base = 4
     while base < total_classificados_diretos and base < 32:
         base *= 2
-        
+
     vagas_faltando = max(0, base - total_classificados_diretos)
 
     terceiros_ordenados = sorted(
@@ -221,7 +253,6 @@ def avancar_classificados_copa(db: Session, torneio_id: str) -> bool:
 
 
 # Determina o vencedor de um jogo eliminatório e avança o time na árvore do torneio mantendo a ordem dos confrontos
-# Determina o vencedor de um jogo eliminatório e avança vencedor (e perdedor na Semi)
 def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
     time_casa = db.query(database.Participante).filter(database.Participante.id == partida.time_casa_id).first()
     time_fora = db.query(database.Participante).filter(database.Participante.id == partida.time_fora_id).first()
@@ -238,7 +269,7 @@ def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
     else:
         g_casa = partida.gols_casa or 0
         g_fora = partida.gols_fora or 0
-        
+
         if g_casa > g_fora:
             vencedor_id = partida.time_casa_id
             perdedor_id = partida.time_fora_id
@@ -272,7 +303,6 @@ def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
     except ValueError:
         return "Erro ao localizar a partida na chave atual."
 
-    # REGRA ESPECIAL DE SEMIFINAL: Vencedor -> Final | Perdedor -> Terceiro Lugar
     if partida.fase == "Semifinal":
         jogo_final = next((p for p in partidas_torneio if p.fase == "Final"), None)
         jogo_terceiro = next((p for p in partidas_torneio if p.fase == "Terceiro Lugar"), None)
@@ -292,7 +322,6 @@ def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
         db.commit()
         return "Vencedor avançou para a Final e perdedor para a disputa de 3º Lugar!"
 
-    # FLUXO PADRÃO (Oitavas, Quartas, etc.)
     fases_ordem = []
     for p in partidas_torneio:
         if p.fase not in fases_ordem:
@@ -315,7 +344,7 @@ def avancar_vencedor_mata_mata(db: Session, partida: database.Partida) -> str:
             jogo_destino.time_casa_id = vencedor_id
         else:
             jogo_destino.time_fora_id = vencedor_id
-            
+
         db.commit()
         return "Vencedor avançou para a próxima fase!"
 
