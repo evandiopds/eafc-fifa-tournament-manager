@@ -4,6 +4,10 @@ import axios from 'axios';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
+// Importação dinâmica de até 12 capas da pasta assets/capas
+const modulosCapas = import.meta.glob('../assets/capas/*.{png,jpg,jpeg,webp}', { eager: true });
+const listaCapas = Object.values(modulosCapas).map((m) => m.default).slice(0, 12);
+
 const DESCRICOES_FORMATO = {
   pontos_corridos: {
     titulo: 'Pontos Corridos (Ida e Volta)',
@@ -41,7 +45,6 @@ export default function TelaInicial({ onTorneioAcessado }) {
         senha: senha
       });
 
-      // CORREÇÃO: Enviamos o pacote completo (resposta.data) com torneio + dados_sorteados
       onTorneioAcessado(resposta.data);
     } catch (err) {
       setErro(
@@ -69,7 +72,6 @@ export default function TelaInicial({ onTorneioAcessado }) {
         senha: senha
       });
 
-      // CORREÇÃO: Enviamos o pacote completo (acesso.data) para padronizar a resposta
       onTorneioAcessado(acesso.data);
     } catch (err) {
       setErro(
@@ -81,197 +83,219 @@ export default function TelaInicial({ onTorneioAcessado }) {
   };
 
   return (
-    <div className="w-full max-w-md bg-slate-800/90 border border-slate-700 rounded-2xl p-8 shadow-2xl backdrop-blur-md">
-      {/* Cabeçalho */}
-      <div className="text-center mb-8">
-        <h1 className="text-3xl font-extrabold text-white tracking-wider">
-          E-FUT <span className="text-emerald-400">MANAGER</span>
-        </h1>
-        <p className="text-slate-400 text-sm mt-1">
-          {abaAtual === 'acessar'
-            ? 'Organize e gerencie seus torneios no FIFA, eFootball e mais.'
-            : 'Configure um novo torneio para começar'}
-        </p>
-      </div>
-
-      {/* Mensagem de Erro (se houver) */}
-      {erro && (
-        <div className="mb-6 p-3 bg-rose-500/20 border border-rose-500/50 rounded-lg text-rose-300 text-sm text-center font-medium">
-          {erro}
+    // Prende a tela nas 4 extremidades do navegador (fixed inset-0), impedindo rolagem
+    <div className="fixed inset-0 w-full h-full flex items-center justify-center overflow-hidden bg-slate-950 px-4">
+      {/* Background Mosaico com capas de jogos */}
+      {listaCapas.length > 0 && (
+        <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden">
+          <div className="grid grid-cols-4 gap-4 w-[130vw] min-h-[130vh] -rotate-6 scale-110 opacity-25">
+            {listaCapas.map((capaUrl, idx) => (
+              <div key={idx} className="w-full aspect-[3/4] overflow-hidden rounded-md border border-slate-800/60 shadow-xl">
+                <img
+                  src={capaUrl}
+                  alt="Capa de jogo"
+                  className="w-full h-full object-cover filter grayscale contrast-125"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/80 to-slate-950/90" />
         </div>
       )}
 
-      {/* ABA 1: ACESSAR TORNEIO */}
-      {abaAtual === 'acessar' ? (
-        <form onSubmit={handleAcessar} className="space-y-5">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Nome do Torneio
-            </label>
-            <input
-              type="text"
-              required
-              value={nomeOuId}
-              onChange={(e) => setNomeOuId(e.target.value)}
-              placeholder="Ex: Brasileirão"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
-            />
-          </div>
+      {/* Card Principal com geometria angular */}
+      <div className="relative z-10 w-full max-w-md bg-slate-900/95 border border-slate-700/80 rounded-md p-6 sm:p-8 shadow-2xl backdrop-blur-md">
+        {/* Cabeçalho */}
+        <div className="text-center mb-6 border-b border-slate-800 pb-4">
+          <h1 className="text-3xl font-extrabold text-white tracking-wider">
+            FUT <span className="text-emerald-400">MANAGER</span>
+          </h1>
+          <p className="text-slate-400 text-xs mt-1 uppercase tracking-widest font-semibold">
+            {abaAtual === 'acessar'
+              ? 'Gestão de Competições de Futebol Virtual'
+              : 'Configuração Inicial de Torneio'}
+          </p>
+        </div>
 
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Senha de Acesso
-            </label>
-            <div className="relative">
+        {/* Mensagem de Erro */}
+        {erro && (
+          <div className="mb-4 p-2.5 bg-rose-500/20 border-l-4 border-rose-500 rounded-r text-rose-300 text-xs text-center font-bold">
+            {erro}
+          </div>
+        )}
+
+        {/* ABA 1: ACESSAR TORNEIO */}
+        {abaAtual === 'acessar' ? (
+          <form onSubmit={handleAcessar} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                Nome do Torneio
+              </label>
               <input
-                type={mostrarSenha ? 'text' : 'password'}
+                type="text"
                 required
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-4 pr-11 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+                value={nomeOuId}
+                onChange={(e) => setNomeOuId(e.target.value)}
+                placeholder="Ex: Brasileirão"
+                className="w-full bg-slate-950 border border-slate-700 rounded px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors text-sm"
               />
-              <button
-                type="button"
-                onClick={() => setMostrarSenha(!mostrarSenha)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-              >
-                {mostrarSenha ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
             </div>
-          </div>
 
-          <button
-            type="submit"
-            disabled={carregando}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-bold py-3.5 rounded-lg uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20"
-          >
-            {carregando ? 'Verificando...' : 'Acessar Torneio'}
-          </button>
-
-          {/* Opção abaixo de Acessar para Criar */}
-          <div className="pt-4 border-t border-slate-700/60 text-center">
-            <p className="text-slate-400 text-sm">Não possui um torneio?</p>
-            <button
-              type="button"
-              onClick={() => {
-                setErro(null);
-                setAbaAtual('criar');
-              }}
-              className="mt-1 text-emerald-400 hover:text-emerald-300 font-semibold text-sm hover:underline"
-            >
-              Criar Novo Torneio
-            </button>
-          </div>
-        </form>
-      ) : (
-        /* ABA 2: CRIAR TORNEIO */
-        <form onSubmit={handleCriar} className="space-y-5">
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Nome do Torneio (Único)
-            </label>
-            <input
-              type="text"
-              required
-              value={nomeOuId}
-              onChange={(e) => setNomeOuId(e.target.value)}
-              placeholder="Ex: Brasileirão"
-              className="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Senha de Proteção
-            </label>
-            <div className="relative">
-              <input
-                type={mostrarSenha ? 'text' : 'password'}
-                required
-                value={senha}
-                onChange={(e) => setSenha(e.target.value)}
-                placeholder="Crie uma senha de acesso"
-                className="w-full bg-slate-900 border border-slate-700 rounded-lg pl-4 pr-11 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
-              />
-              <button
-                type="button"
-                onClick={() => setMostrarSenha(!mostrarSenha)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-              >
-                {mostrarSenha ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          {/* SELETOR HORIZONTAL DE FORMATOS */}
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
-              Formato de Disputa
-            </label>
-            <div className="grid grid-cols-3 gap-2 p-1 bg-slate-900 rounded-lg border border-slate-700">
-              {[
-                { id: 'pontos_corridos', label: 'PONTOS C.' },
-                { id: 'mata_mata', label: 'MATA-MATA' },
-                { id: 'copa', label: 'COPA' }
-              ].map((item) => (
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                Senha de Acesso
+              </label>
+              <div className="relative">
+                <input
+                  type={mostrarSenha ? 'text' : 'password'}
+                  required
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-slate-950 border border-slate-700 rounded pl-4 pr-11 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors text-sm"
+                />
                 <button
-                  key={item.id}
                   type="button"
-                  onClick={() => setFormato(item.id)}
-                  className={`py-2 text-xs font-bold rounded-md transition-all ${
-                    formato === item.id
-                      ? 'bg-emerald-500 text-slate-950 shadow'
-                      : 'text-slate-400 hover:text-white'
-                  }`}
+                  onClick={() => setMostrarSenha(!mostrarSenha)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                 >
-                  {item.label}
+                  {mostrarSenha ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
-              ))}
+              </div>
             </div>
 
-            {/* CAIXA DESCRITIVA DINÂMICA */}
-            <div className="mt-3 p-3.5 bg-slate-900/80 border border-slate-700/80 rounded-lg">
-              <h4 className="text-xs font-bold text-emerald-400 uppercase mb-1">
-                {DESCRICOES_FORMATO[formato].titulo}
-              </h4>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                {DESCRICOES_FORMATO[formato].texto}
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={carregando}
-            className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-bold py-3.5 rounded-lg uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20"
-          >
-            {carregando ? 'Criando Torneio...' : 'Criar e Continuar'}
-          </button>
-
-          {/* Opção abaixo de Criar para voltar ao Acesso */}
-          <div className="pt-4 border-t border-slate-700/60 text-center">
             <button
-              type="button"
-              onClick={() => {
-                setErro(null);
-                setAbaAtual('acessar');
-              }}
-              className="mt-1 text-emerald-400 hover:text-emerald-300 font-semibold text-sm hover:underline"
+              type="submit"
+              disabled={carregando}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-black py-3 rounded uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 text-xs mt-2"
             >
-              Voltar para Acessar Torneio
+              {carregando ? 'Verificando...' : 'Acessar Torneio'}
             </button>
-          </div>
-        </form>
-      )}
+
+            {/* Alternar para Criação */}
+            <div className="pt-3 border-t border-slate-800 text-center">
+              <p className="text-slate-500 text-xs uppercase tracking-wide">Não possui um torneio?</p>
+              <button
+                type="button"
+                onClick={() => {
+                  setErro(null);
+                  setAbaAtual('criar');
+                }}
+                className="mt-1 text-emerald-400 hover:text-emerald-300 font-bold text-xs uppercase tracking-wider hover:underline"
+              >
+                Criar Novo Torneio
+              </button>
+            </div>
+          </form>
+        ) : (
+          /* ABA 2: CRIAR TORNEIO */
+          <form onSubmit={handleCriar} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                Nome do Torneio (Único)
+              </label>
+              <input
+                type="text"
+                required
+                value={nomeOuId}
+                onChange={(e) => setNomeOuId(e.target.value)}
+                placeholder="Ex: Brasileirão"
+                className="w-full bg-slate-950 border border-slate-700 rounded px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                Senha de Proteção
+              </label>
+              <div className="relative">
+                <input
+                  type={mostrarSenha ? 'text' : 'password'}
+                  required
+                  value={senha}
+                  onChange={(e) => setSenha(e.target.value)}
+                  placeholder="Crie uma senha de acesso"
+                  className="w-full bg-slate-950 border border-slate-700 rounded pl-4 pr-11 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarSenha(!mostrarSenha)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
+                >
+                  {mostrarSenha ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* SELETOR HORIZONTAL DE FORMATOS */}
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 mb-1.5">
+                Formato de Disputa
+              </label>
+              <div className="grid grid-cols-3 gap-1 p-1 bg-slate-950 rounded border border-slate-800">
+                {[
+                  { id: 'pontos_corridos', label: 'PONTOS C.' },
+                  { id: 'mata_mata', label: 'MATA-MATA' },
+                  { id: 'copa', label: 'COPA' }
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setFormato(item.id)}
+                    className={`py-1.5 text-[11px] font-black uppercase tracking-wider rounded transition-all ${
+                      formato === item.id
+                        ? 'bg-emerald-500 text-slate-950 shadow'
+                        : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* CAIXA DESCRITIVA DINÂMICA */}
+              <div className="mt-2.5 p-3 bg-slate-950/80 border-l-2 border-emerald-500 rounded-r">
+                <h4 className="text-xs font-black text-emerald-400 uppercase mb-0.5">
+                  {DESCRICOES_FORMATO[formato].titulo}
+                </h4>
+                <p className="text-[11px] text-slate-300 leading-relaxed">
+                  {DESCRICOES_FORMATO[formato].texto}
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={carregando}
+              className="w-full bg-emerald-500 hover:bg-emerald-600 disabled:opacity-50 text-slate-950 font-black py-3 rounded uppercase tracking-wider transition-all shadow-lg shadow-emerald-500/20 text-xs mt-1"
+            >
+              {carregando ? 'Criando Torneio...' : 'Criar e Continuar'}
+            </button>
+
+            {/* Alternar para Acesso */}
+            <div className="pt-3 border-t border-slate-800 text-center">
+              <button
+                type="button"
+                onClick={() => {
+                  setErro(null);
+                  setAbaAtual('acessar');
+                }}
+                className="mt-1 text-emerald-400 hover:text-emerald-300 font-bold text-xs uppercase tracking-wider hover:underline"
+              >
+                Voltar para Acessar Torneio
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

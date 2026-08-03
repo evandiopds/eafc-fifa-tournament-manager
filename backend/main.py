@@ -172,6 +172,7 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
         "confrontos": partidas_formatadas,
     }
 
+    # Reconstrói a árvore preservando listas isoladas de Final e Terceiro Lugar
     if torneio.formato == "mata_mata":
         arvore = defaultdict(list)
         for j in partidas_formatadas:
@@ -181,8 +182,9 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
 
     elif torneio.formato == "pontos_corridos":
         chaveamento_reconstruido["tabela"] = partidas_formatadas
-        n_times = len(participantes_db)
-        chaveamento_reconstruido["total_rodadas"] = max((n_times - 1) * 2, 1) if n_times > 1 else 1
+        # Obtém o total de rodadas real existente no banco para não cortar jogos em chaves ímpares com BYE
+        max_rodadas = max([j.get("rodada", 1) for j in partidas_formatadas], default=1) if partidas_formatadas else 1
+        chaveamento_reconstruido["total_rodadas"] = max_rodadas
         chaveamento_reconstruido["classificacao"] = calcular_tabela_classificacao(db, torneio.id)
 
     elif torneio.formato == "copa":
@@ -494,10 +496,19 @@ def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_d
     if payload.partida_id:
         partida = db.query(database.Partida).filter(database.Partida.id == payload.partida_id).first()
     else:
+        # Busca partida por fase limpa ou aproximação (fallback resiliente para Terceiro Lugar/Final)
+        fase_buscada = payload.rodada_ou_fase.strip()
         partidas_fase = db.query(database.Partida).filter(
             database.Partida.torneio_id == payload.torneio_id,
-            database.Partida.fase == payload.rodada_ou_fase
+            database.Partida.fase == fase_buscada
         ).all()
+
+        if not partidas_fase:
+            partidas_fase = db.query(database.Partida).filter(
+                database.Partida.torneio_id == payload.torneio_id,
+                database.Partida.fase.ilike(f"%{fase_buscada}%")
+            ).all()
+
         if len(partidas_fase) > payload.index_partida:
             partida = partidas_fase[payload.index_partida]
 

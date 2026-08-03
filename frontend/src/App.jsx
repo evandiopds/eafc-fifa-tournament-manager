@@ -14,18 +14,16 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-6 text-white">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 text-white">
       {/* 1. SE NÃO TIVER TORNEIO ATIVO -> EXIBE A TELA INICIAL */}
       {!torneioAtivo ? (
         <TelaInicial
           onTorneioAcessado={(respostaAcesso) => {
-            // Se a API retornar o objeto aninhado .torneio, usamos ele; se não, usamos direto a resposta
             const dadosTorneio = respostaAcesso.torneio || respostaAcesso;
             setTorneioAtivo(dadosTorneio);
 
-            // TASK #37: Se o torneio acessado já possuir chaveamento salvo, carrega automaticamente!
             if (respostaAcesso.dados_sorteados) {
-              console.log("📂 Chaveamento existente carregado do Back-End:", respostaAcesso.dados_sorteados);
+              console.log("[App] Chaveamento existente carregado do Back-End:", respostaAcesso.dados_sorteados);
               setDadosSorteados(respostaAcesso.dados_sorteados);
             } else {
               setDadosSorteados(null);
@@ -33,23 +31,23 @@ export default function App() {
           }}
         />
       ) : (
-        /* SE ESTIVER COM TORNEIO ATIVO -> ABA SUPERIOR + CONTEÚDO */
-        <div className="w-full max-w-5xl">
-          <div className="flex items-center justify-between mb-6 bg-slate-800/80 p-4 rounded-xl border border-slate-700">
+        /* SE ESTIVER COM TORNEIO ATIVO -> ABA SUPERIOR TÁTICA + CONTEÚDO */
+        <div className="w-full max-w-6xl mx-auto py-4">
+          <div className="flex items-center justify-between mb-6 bg-slate-900/95 p-4 rounded-md border border-slate-800 shadow-lg backdrop-blur-md">
             <div>
-              <h2 className="text-xl font-bold text-emerald-400">
+              <h2 className="text-xl font-extrabold text-white tracking-wider">
                 {torneioAtivo.nome}
               </h2>
-              <p className="text-xs text-slate-400 uppercase tracking-wider">
+              <p className="text-xs text-emerald-400 uppercase tracking-widest font-bold mt-0.5">
                 Formato: {torneioAtivo.formato.replace('_', ' ')}
               </p>
             </div>
             <button
               onClick={handleTrocarTorneio}
-              className="flex items-center gap-1.5 text-xs bg-slate-700 hover:bg-slate-600 px-3 py-2 rounded-lg font-bold text-slate-200 hover:text-white transition-all shadow-sm"
+              className="flex items-center gap-1.5 text-xs bg-slate-950 hover:bg-rose-950/40 border border-slate-800 hover:border-rose-800/60 px-3.5 py-2 rounded-sm font-black uppercase tracking-wider text-slate-400 hover:text-rose-400 transition-all shadow-sm"
               title="Sair / Trocar Torneio"
             >
-              <Minimize2 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              <Minimize2 className="w-3.5 h-3.5 shrink-0" />
               <span>SAIR</span>
             </button>
           </div>
@@ -59,10 +57,10 @@ export default function App() {
             <FluxoParticipantes
               torneio={torneioAtivo}
               onSorteioConcluido={(resultadoBackend) => {
-                console.log("🎲 Sorteio gerado pelo Back-End:", resultadoBackend);
+                console.log("[App] Sorteio gerado pelo Back-End:", resultadoBackend);
                 setDadosSorteados(resultadoBackend);
               }}
-              onSair={handleTrocarTorneio}
+              onVoltar={handleTrocarTorneio}
             />
           ) : (
             /* 3. SE EXISTIR -> MOSTRA O CHAVEAMENTO DO TORNEIO */

@@ -1,159 +1,281 @@
 import random
 import math
 
-def gerar_pontos_corridos(times_sorteados: list, turno_duplo: bool = False) -> dict:
-    """
-    Gera as rodadas de um torneio de pontos corridos usando o Algoritmo do Círculo.
-    
-    :param times_sorteados: Lista de dicionários com os times e participantes.
-    :param turno_duplo: Se True, gera jogos de ida e volta. Se False, apenas ida.
-    :return: Dicionário contendo as rodadas e os confrontos de cada uma.
-    """
-    if not times_sorteados:
-        return {}
 
-    # Fazemos uma cópia para não alterar a lista original
-    times = times_sorteados.copy()
-    
-    # Tratamento para número ímpar
-    if len(times) % 2 != 0:
-        times.append({"participantes": None, "time": "Folga"})
+def sortear_duplas(jogadores: list, balanceado: bool = False):
+    lista_jogadores = jogadores.copy()
+    duplas_formadas = []
 
-    num_times = len(times)
+    if not balanceado:
+        random.shuffle(lista_jogadores)
+        for i in range(0, len(lista_jogadores), 2):
+            if i + 1 < len(lista_jogadores):
+                duplas_formadas.append((lista_jogadores[i], lista_jogadores[i+1]))
+            else:
+                duplas_formadas.append((lista_jogadores[i], "Sem Dupla (Solo)"))
+        return duplas_formadas
+
+    pote_ouro = [j for j in lista_jogadores if j.get('nivel') == 'Ouro']
+    pote_prata = [j for j in lista_jogadores if j.get('nivel') == 'Prata']
+    pote_bronze = [j for j in lista_jogadores if j.get('nivel') == 'Bronze']
+    
+    random.shuffle(pote_ouro)
+    random.shuffle(pote_prata)
+    random.shuffle(pote_bronze)
+    
+    if len(lista_jogadores) % 2 != 0:
+        if pote_prata:
+            jogador_solo = pote_prata.pop()
+        elif len(pote_ouro) > len(pote_bronze) and pote_ouro:
+            jogador_solo = pote_ouro.pop()
+        elif pote_bronze:
+            jogador_solo = pote_bronze.pop()
+        else:
+            jogador_solo = pote_ouro.pop()
+            
+        duplas_formadas.append((jogador_solo, "Sem Dupla (Solo)"))
+    
+    while pote_ouro and pote_bronze:
+        duplas_formadas.append((pote_ouro.pop(), pote_bronze.pop()))
+        
+    while pote_ouro and pote_prata:
+        duplas_formadas.append((pote_ouro.pop(), pote_prata.pop()))
+        
+    while pote_prata and pote_bronze:
+        duplas_formadas.append((pote_prata.pop(), pote_bronze.pop()))
+        
+    while len(pote_prata) >= 2:
+        duplas_formadas.append((pote_prata.pop(), pote_prata.pop()))
+        
+    while len(pote_ouro) >= 2:
+        duplas_formadas.append((pote_ouro.pop(), pote_ouro.pop()))
+        
+    while len(pote_bronze) >= 2:
+        duplas_formadas.append((pote_bronze.pop(), pote_bronze.pop()))
+            
+    return duplas_formadas
+
+
+def sortear_times(participantes: list, times_disponiveis: list) -> list:
+    times_embaralhados = times_disponiveis.copy()
+    random.shuffle(times_embaralhados)
+    
+    times_atribuidos = []
+    for participante in participantes:
+        time_sorteado = times_embaralhados.pop()
+        times_atribuidos.append({
+            "participantes": participante,
+            "time": time_sorteado
+        })
+        
+    return times_atribuidos
+
+
+# Gera confrontos de todos contra todos e trata rodadas ímpares sem cortar o returno
+def _gerar_tabela_pontos_corridos(times_tabela: list, ida_e_volta: bool = True) -> list:
+    lista = times_tabela.copy()
+    if len(lista) % 2 != 0:
+        lista.append("FOLGA (Bye)")
+        
+    num_times = len(lista)
+    # Garante o cálculo correto de rodadas para números pares e ímpares
     total_rodadas = num_times - 1
     metade = num_times // 2
+    rodadas_ida = []
     
-    tabela = {}
-
-    # GERANDO O 1º TURNO (IDA)
-    for rodada in range(total_rodadas):
-        confrontos_rodada = []
-        
+    for r in range(total_rodadas):
         for i in range(metade):
-            casa = times[i]
-            visitante = times[num_times - 1 - i]
+            casa = lista[i]
+            fora = lista[num_times - 1 - i]
             
-            if casa["time"] != "Folga" and visitante["time"] != "Folga":
-                confrontos_rodada.append({
-                    "casa": casa["time"],
-                    "visitante": visitante["time"]
+            if casa != "FOLGA (Bye)" and fora != "FOLGA (Bye)":
+                rodadas_ida.append({
+                    "rodada": r + 1,
+                    "turno": "Ida",
+                    "casa": casa,
+                    "fora": fora
                 })
+                
+        lista = [lista[0]] + [lista[-1]] + lista[1:-1]
         
-        tabela[f"Rodada {rodada + 1}"] = confrontos_rodada
-        times.insert(1, times.pop())
-
-    # GERANDO O 2º TURNO (VOLTA)
-    if turno_duplo:
-        tabela_retorno = {}
-        for nome_rodada, confrontos in tabela.items():
-            # Descobre o número da rodada atual e soma com o total do 1º turno
-            numero_rodada_atual = int(nome_rodada.split()[1])
-            nova_rodada = numero_rodada_atual + total_rodadas
+    confrontos_totais = rodadas_ida.copy()
+    if ida_e_volta:
+        for jogo in rodadas_ida:
+            confrontos_totais.append({
+                "rodada": jogo["rodada"] + total_rodadas,
+                "turno": "Volta",
+                "casa": jogo["fora"],
+                "fora": jogo["casa"]
+            })
             
-            confrontos_retorno = []
-            for jogo in confrontos:
-                # O Pulo do Gato: Inverte quem joga em casa e quem é visitante
-                confrontos_retorno.append({
-                    "casa": jogo["visitante"],
-                    "visitante": jogo["casa"]
-                })
+    return confrontos_totais
+
+
+# Gera uma estrutura de chaveamento eliminatório separando Final e Terceiro Lugar em chaves distintas
+def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
+    base = 1
+    while base * 2 <= total:
+        base *= 2
+        
+    rodadas_arvore = {}
+    fases_nomes = {
+        1: "Final",
+        2: "Semifinal",
+        4: "Quartas de Final",
+        8: "Oitavas de Final",
+        16: "16avos de Final"
+    }
+    
+    if base < total:
+        num_playin = total - base
+        times_playin = num_playin * 2
+        
+        rodada_playin = []
+        for i in range(0, times_playin, 2):
+            rodada_playin.append({
+                "fase": "Play-In",
+                "casa": lista_times[i],
+                "fora": lista_times[i+1]
+            })
+        rodadas_arvore["Play-In"] = rodada_playin
+        
+        fase_base_nome = fases_nomes.get(base // 2, "Eliminatória")
+        rodada_base = []
+        
+        for _ in range(num_playin):
+            rodada_base.append("Aguardando")
+        for i in range(times_playin, total):
+            rodada_base.append(lista_times[i])
             
-            tabela_retorno[f"Rodada {nova_rodada}"] = confrontos_retorno
+        confrontos_fase_base = []
+        for i in range(0, len(rodada_base), 2):
+            confrontos_fase_base.append({
+                "fase": fase_base_nome,
+                "casa": rodada_base[i],
+                "fora": rodada_base[i+1] if i+1 < len(rodada_base) else "Aguardando"
+            })
+        rodadas_arvore[fase_base_nome] = confrontos_fase_base
         
-        # Junta o segundo turno no dicionário principal
-        tabela.update(tabela_retorno)
-
-    return tabela
-
-
-def gerar_mata_mata(times_sorteados: list) -> dict:
-    """
-    Gera os confrontos iniciais eliminatórios (Mata-Mata) de forma randômica.
-    
-    :param times_sorteados: Lista de dicionários com os times e participantes.
-    :return: Dicionário contendo os confrontos da fase atual.
-    """
-    if not times_sorteados:
-        return {}
-
-    # Fazemos uma cópia para não alterar a lista original do back-end
-    times = times_sorteados.copy()
-    
-    # Tratamento para ímpares no Mata-Mata: O adversário invisível vira um Avanço Direto
-    if len(times) % 2 != 0:
-        times.append({"participantes": None, "time": "Avanço Direto (Bye)"})
-
-    # Sorteio cego
-    random.shuffle(times)
-    
-    confrontos = []
-    
-    # Iteramos a lista pulando de 2 em 2 para formar os pares
-    for i in range(0, len(times), 2):
-        casa = times[i]
-        visitante = times[i+1]
+        tamanho_futuro = (base // 2) // 2
+        while tamanho_futuro >= 1:
+            nome_futuro = fases_nomes.get(tamanho_futuro, "Final")
+            if tamanho_futuro == 1:
+                # Separa a Final da disputa do Terceiro Lugar para evitar conflito de índice no BD
+                rodadas_arvore["Final"] = [{"fase": "Final", "casa": "Aguardando", "fora": "Aguardando"}]
+                if base >= 4:
+                    rodadas_arvore["Terceiro Lugar"] = [{"fase": "Terceiro Lugar", "casa": "Aguardando", "fora": "Aguardando"}]
+            else:
+                rodadas_arvore[nome_futuro] = [
+                    {"fase": nome_futuro, "casa": "Aguardando", "fora": "Aguardando"}
+                    for _ in range(tamanho_futuro)
+                ]
+            tamanho_futuro //= 2
+            
+    else:
+        tamanho_atual = base // 2
+        idx_lista = 0
         
-        confrontos.append({
-            "casa": casa["time"],
-            "visitante": visitante["time"]
-        })
+        while tamanho_atual >= 1:
+            nome_fase = fases_nomes.get(tamanho_atual, "Final")
+            jogos_fase = []
+            
+            if tamanho_atual == 1:
+                casa_final = lista_times[idx_lista] if idx_lista < total else "Aguardando"
+                fora_final = lista_times[idx_lista+1] if idx_lista+1 < total else "Aguardando"
+                
+                # Separa a Final da disputa do Terceiro Lugar para evitar conflito de índice no BD
+                rodadas_arvore["Final"] = [{"fase": "Final", "casa": casa_final, "fora": fora_final}]
+                if base >= 4:
+                    rodadas_arvore["Terceiro Lugar"] = [{"fase": "Terceiro Lugar", "casa": "Aguardando", "fora": "Aguardando"}]
+            else:
+                for _ in range(tamanho_atual):
+                    if idx_lista < total:
+                        jogos_fase.append({
+                            "fase": nome_fase,
+                            "casa": lista_times[idx_lista],
+                            "fora": lista_times[idx_lista+1]
+                        })
+                        idx_lista += 2
+                    else:
+                        jogos_fase.append({
+                            "fase": nome_fase,
+                            "casa": "Aguardando",
+                            "fora": "Aguardando"
+                        })
+                rodadas_arvore[nome_fase] = jogos_fase
+            tamanho_atual //= 2
+
+    todas_partidas = []
+    for chave_fase in rodadas_arvore:
+        todas_partidas.extend(rodadas_arvore[chave_fase])
+
+    return rodadas_arvore, todas_partidas
+
+
+def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida_e_volta: bool = True) -> dict:
+    lista = participantes_com_times.copy()
+    random.shuffle(lista)
+    total = len(lista)
+    
+    if formato == "pontos_corridos":
+        tabela_jogos = _gerar_tabela_pontos_corridos(lista, ida_e_volta=ida_e_volta)
+        max_rodadas = max([j["rodada"] for j in tabela_jogos], default=1) if tabela_jogos else 1
         
-    # Calculando dinamicamente o nome da fase baseada no número de jogos
-    total_jogos = len(confrontos)
-    nome_fase = "Final"
-    if total_jogos == 2:
-        nome_fase = "Semifinal"
-    elif total_jogos == 4:
-        nome_fase = "Quartas de Final"
-    elif total_jogos == 8:
-        nome_fase = "Oitavas de Final"
-    elif total_jogos > 8:
-        nome_fase = f"Fase de {total_jogos * 2} Avos"
+        return {
+            "formato": "pontos_corridos",
+            "ida_e_volta": ida_e_volta,
+            "total_rodadas": max_rodadas,
+            "tabela": tabela_jogos
+        }
 
-    return {
-        "fase": nome_fase,
-        "total_confrontos": total_jogos,
-        "confrontos": confrontos
-    }
+    elif formato == "mata_mata":
+        rodadas_arvore, todas_partidas = _gerar_arvore_mata_mata(lista, total)
+        return {
+            "formato": "mata_mata",
+            "fase": list(rodadas_arvore.keys())[0] if rodadas_arvore else "Eliminatória",
+            "total_participantes": total,
+            "arvore": rodadas_arvore,
+            "partidas_iniciais": todas_partidas
+        }
 
-
-def gerar_fase_grupos(times_sorteados: list, times_por_grupo: int = 4) -> dict:
-    """
-    Divide a lista de participantes em grupos equilibrados para a fase inicial (Modo Copa).
-    
-    :param times_sorteados: Lista de dicionários com os times e participantes.
-    :param times_por_grupo: Quantidade base desejada de times por grupo (padrão é 4).
-    :return: Dicionário contendo os grupos e seus respectivos integrantes.
-    """
-    if not times_sorteados:
-        return {}
-
-    # Cópia de segurança para isolar os dados
-    times = times_sorteados.copy()
-    
-    # Sorteio cego imitando as "bolinhas" da UEFA/FIFA
-    random.shuffle(times)
-    
-    total_times = len(times)
-    # Calculando quantos grupos serão necessários (ex: 10 times / 4 = 2.5 -> arredonda para 3 grupos)
-    num_grupos = math.ceil(total_times / times_por_grupo)
-    
-    # Gerando as letras dos grupos usando a tabela ASCII (65 = 'A', 66 = 'B', etc.)
-    letras_grupos = [chr(i) for i in range(65, 65 + num_grupos)]
-    
-    # Inicializando o dicionário com os grupos vazios
-    fase_grupos = {letra: [] for letra in letras_grupos}
-    
-    # Distribuição equilibrada em formato de "Roleta" (um time em cada grupo por vez)
-    for index, time in enumerate(times):
-        letra_atual = letras_grupos[index % num_grupos]
-        fase_grupos[letra_atual].append({
-            "casa": time["time"], # Usamos a chave "casa" para manter um padrão visual, mas aqui é apenas o nome do time
-            "participantes": time.get("participantes")
-        })
+    elif formato == "copa":
+        num_grupos = max(1, math.ceil(total / 4))
+        letras = ["A", "B", "C", "D", "E", "F", "G", "H"]
         
-    return {
-        "fase": "Fase de Grupos",
-        "total_grupos": num_grupos,
-        "grupos": fase_grupos
-    }
+        grupos_membros = {}
+        for i in range(num_grupos):
+            nome_grupo = f"Grupo {letras[i]}" if i < len(letras) else f"Grupo {i+1}"
+            grupos_membros[nome_grupo] = []
+            
+        for idx, participante in enumerate(lista):
+            idx_grupo = idx % num_grupos
+            nome_grupo = f"Grupo {letras[idx_grupo]}" if idx_grupo < len(letras) else f"Grupo {idx_grupo+1}"
+            grupos_membros[nome_grupo].append(participante)
+            
+        grupos_confrontos = {}
+        todas_partidas_copa = []
+        
+        for nome_grupo, membros in grupos_membros.items():
+            jogos_grupo = _gerar_tabela_pontos_corridos(membros, ida_e_volta=False)
+            for jogo in jogos_grupo:
+                jogo["fase"] = nome_grupo
+                
+            grupos_confrontos[nome_grupo] = jogos_grupo
+            todas_partidas_copa.extend(jogos_grupo)
+            
+        # Determina o tamanho da chave eliminatória e gera a árvore prévia
+        tamanho_mata_mata = 4 if total <= 8 else (8 if total <= 16 else 16)
+        times_vazios = ["Aguardando"] * tamanho_mata_mata
+        arvore_mata_mata, partidas_mata_mata = _gerar_arvore_mata_mata(times_vazios, tamanho_mata_mata)
+        
+        todas_partidas_copa.extend(partidas_mata_mata)
+            
+        return {
+            "formato": "copa",
+            "total_grupos": num_grupos,
+            "grupos": grupos_confrontos,
+            "arvore": arvore_mata_mata,
+            "confrontos": todas_partidas_copa
+        }
+
+    return {"formato": formato, "erro": "Formato desconhecido"}

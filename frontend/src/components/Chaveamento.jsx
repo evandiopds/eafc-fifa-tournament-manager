@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { Trophy, CircleStar, LockKeyhole, FilePen, FileCheck } from 'lucide-react';
+import { Trophy, CircleStar, LockKeyhole, FilePen, FileCheck, AlertTriangle, X } from 'lucide-react';
 import { buscarTime } from '../utils/teamSearch';
 import escudoGen from '../assets/escudo_gen.svg';
 import escudoOff from '../assets/escudo_off.svg';
@@ -24,7 +24,60 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
-// Card individual da partida com suporte a edição de placar, pênaltis e W.O.
+// Modal customizado com geometria tática angular
+function ModalConfirmacao({ isOpen, onClose, onConfirm, titulo, mensagem, textoBotao = 'Confirmar', isAlerta = false }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md bg-slate-900 border border-slate-700 rounded-md p-5 shadow-2xl flex flex-col gap-4">
+        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm uppercase tracking-wider">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-400" />
+            <span>{titulo}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-slate-400 hover:text-white p-1 rounded-sm transition-colors"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <p className="text-slate-300 text-sm leading-relaxed">{mensagem}</p>
+
+        <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
+          {!isAlerta && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-sm text-xs font-bold transition-all"
+            >
+              Cancelar
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => {
+              if (onConfirm) onConfirm();
+              onClose();
+            }}
+            className={`px-4 py-2 rounded-sm text-xs font-black uppercase transition-all shadow-md ${
+              isAlerta
+                ? 'bg-emerald-500 hover:bg-emerald-600 text-slate-950'
+                : 'bg-rose-600 hover:bg-rose-500 text-white'
+            }`}
+          >
+            {textoBotao}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Card individual da partida com formato angular
 function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado, isEliminatorio = false }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
@@ -46,7 +99,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     setter(apenasNumeros);
   };
 
-  // Identifica se o confronto é eliminatório (mata-mata puro ou fase eliminatória da copa)
   const ehMataMata = isEliminatorio || formato === 'mata_mata';
 
   const empatadoNoMataMata =
@@ -56,7 +108,43 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     golsVisitante !== '' &&
     Number(golsCasa) === Number(golsVisitante);
 
-  // Envia o placar atualizado para a API no back-end
+  const temPenaltis =
+    ehMataMata &&
+    !emModoEdicao &&
+    penCasa !== '' &&
+    penCasa != null &&
+    penVisitante !== '' &&
+    penVisitante != null;
+
+  const getPodioStyles = (isCasa) => {
+    if (!jogo.status || jogo.status !== 'finalizada') return '';
+
+    const gCasa = Number(golsCasa);
+    const gFora = Number(golsVisitante);
+    let vitoriaCasa = gCasa > gFora;
+    let vitoriaFora = gFora > gCasa;
+
+    if (gCasa === gFora && temPenaltis) {
+      vitoriaCasa = Number(penCasa) > Number(penVisitante);
+      vitoriaFora = Number(penVisitante) > Number(penCasa);
+    }
+
+    if (jogo.fase === 'Final') {
+      if ((isCasa && vitoriaCasa) || (!isCasa && vitoriaFora)) {
+        return 'bg-amber-500/15 border-amber-500/50 text-amber-200';
+      }
+      return 'bg-slate-300/10 border-slate-400/40 text-slate-300';
+    }
+
+    if (jogo.fase === 'Terceiro Lugar') {
+      if ((isCasa && vitoriaCasa) || (!isCasa && vitoriaFora)) {
+        return 'bg-amber-700/20 border-amber-700/50 text-amber-400';
+      }
+    }
+
+    return '';
+  };
+
   const salvarNoBackend = async (casaGols, foraGols, casaPen = null, foraPen = null) => {
     setCarregando(true);
     setStatusMsg(null);
@@ -74,7 +162,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
       });
 
       setStatusMsg({ erro: false, texto: 'Salvo!' });
-      setEmModoEdicao(false); // Fecha o modo de edição ao salvar com sucesso
+      setEmModoEdicao(false);
       if (onPlacarSalvo) onPlacarSalvo(resp.data);
     } catch (err) {
       setStatusMsg({
@@ -86,7 +174,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     }
   };
 
-  // Valida regras de empate/pênaltis antes de salvar o placar
   const handleSalvarPlacar = () => {
     if (bloqueado) return;
 
@@ -103,6 +190,10 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         setStatusMsg({ erro: true, texto: 'Empate exige pênaltis!' });
         return;
       }
+      if (Number(penCasa) === Number(penVisitante)) {
+        setStatusMsg({ erro: true, texto: 'Pênaltis não empatam!' });
+        return;
+      }
     }
 
     salvarNoBackend(
@@ -113,7 +204,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     );
   };
 
-  // Aplica vitória rápida por W.O. (1x0 ou 0x1)
   const handleWO = (vencedor) => {
     if (bloqueado) return;
     const gCasa = vencedor === 'casa' ? 1 : 0;
@@ -139,12 +229,16 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
 
   return (
     <div
-      className={`w-72 bg-slate-800/90 border rounded-xl p-3 flex flex-col gap-2 shadow-md transition-all ${
+      className={`w-72 bg-slate-800/90 border rounded-md p-3 flex flex-col gap-2 shadow-md transition-all ${
         bloqueado ? 'border-slate-700/50 bg-slate-900/40 opacity-75' : 'border-slate-700 hover:border-slate-500'
       }`}
     >
       {/* Time da Casa */}
-      <div className="flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2">
+      <div
+        className={`flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2 px-1 rounded-sm transition-colors ${getPodioStyles(
+          true
+        )}`}
+      >
         <div className="flex items-center gap-2.5 overflow-hidden">
           <img
             src={getEscudo(nomeCasa)}
@@ -169,12 +263,16 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           value={golsCasa}
           onChange={(e) => handleNumeroChange(setGolsCasa, e.target.value)}
           placeholder="-"
-          className="w-9 text-center bg-slate-900 border border-slate-700 rounded py-0.5 text-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30"
+          className="w-9 text-center bg-slate-900 border border-slate-700 rounded-sm py-0.5 text-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30"
         />
       </div>
 
       {/* Time Visitante */}
-      <div className="flex items-center justify-between gap-2 pt-0.5">
+      <div
+        className={`flex items-center justify-between gap-2 pt-0.5 px-1 rounded-sm transition-colors ${getPodioStyles(
+          false
+        )}`}
+      >
         <div className="flex items-center gap-2.5 overflow-hidden">
           <img
             src={getEscudo(nomeFora)}
@@ -199,11 +297,19 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           value={golsVisitante}
           onChange={(e) => handleNumeroChange(setGolsVisitante, e.target.value)}
           placeholder="-"
-          className="w-9 text-center bg-slate-900 border border-slate-700 rounded py-0.5 text-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30"
+          className="w-9 text-center bg-slate-900 border border-slate-700 rounded-sm py-0.5 text-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30"
         />
       </div>
 
-      {/* Ações do Card (Editar Placar, W.O., Pênaltis e Salvar) */}
+      {/* Exibição de placar dos pênaltis */}
+      {temPenaltis && (
+        <div className="flex items-center justify-center gap-1.5 py-1 bg-slate-900/80 rounded-sm border border-emerald-500/30 text-emerald-400 font-bold text-xs mt-1">
+          <img src={penaltyIcon} alt="Pênaltis" className="w-3.5 h-3.5 shrink-0" />
+          <span>{penCasa} × {penVisitante}</span>
+        </div>
+      )}
+
+      {/* Botões de controle */}
       {!bloqueado && (
         <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-slate-700/40">
           <div className="flex items-center justify-between">
@@ -217,14 +323,14 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
                       type="text"
                       value={penCasa}
                       onChange={(e) => handleNumeroChange(setPenCasa, e.target.value)}
-                      className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
+                      className="w-6 text-center bg-slate-900 border border-slate-600 rounded-sm text-xs"
                     />
                     <span>×</span>
                     <input
                       type="text"
                       value={penVisitante}
                       onChange={(e) => handleNumeroChange(setPenVisitante, e.target.value)}
-                      className="w-6 text-center bg-slate-900 border border-slate-600 rounded text-xs"
+                      className="w-6 text-center bg-slate-900 border border-slate-600 rounded-sm text-xs"
                     />
                   </div>
                 ) : (
@@ -232,7 +338,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
                     <button
                       type="button"
                       onClick={() => handleWO('casa')}
-                      className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded"
+                      className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded-sm"
                       title="Vitória por W.O. (1x0)"
                     >
                       W.O. Casa
@@ -240,7 +346,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
                     <button
                       type="button"
                       onClick={() => handleWO('fora')}
-                      className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded"
+                      className="px-1.5 py-0.5 bg-slate-700 hover:bg-slate-600 text-[9px] font-bold uppercase text-slate-300 rounded-sm"
                       title="Vitória por W.O. (0x1)"
                     >
                       W.O. Fora
@@ -252,7 +358,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
                   type="button"
                   onClick={handleSalvarPlacar}
                   disabled={carregando}
-                  className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-2.5 py-1 rounded text-[11px] font-black uppercase transition-all shadow-sm ml-auto"
+                  className="flex items-center gap-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 px-2.5 py-1 rounded-sm text-[11px] font-black uppercase transition-all shadow-sm ml-auto"
                 >
                   <FileCheck className="w-3.5 h-3.5 shrink-0" />
                   <span>{carregando ? '...' : 'Salvar'}</span>
@@ -265,7 +371,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
                   setStatusMsg(null);
                   setEmModoEdicao(true);
                 }}
-                className="flex items-center justify-center gap-1.5 w-full bg-slate-700 hover:bg-slate-600 text-slate-200 py-1.5 rounded text-[11px] font-bold uppercase transition-all"
+                className="flex items-center justify-center gap-1.5 w-full bg-slate-700 hover:bg-slate-600 text-slate-200 py-1.5 rounded-sm text-[11px] font-bold uppercase transition-all"
               >
                 <FilePen className="w-3.5 h-3.5 shrink-0 text-emerald-400" />
                 <span>Editar Placar</span>
@@ -284,13 +390,16 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   );
 }
 
-// Componente principal que gerencia e renderiza o chaveamento do torneio
+// Componente principal do chaveamento
 export default function Chaveamento({ torneio, dadosSorteados }) {
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
   const [dadosTorneio, setDadosTorneio] = useState(dadosSorteados);
   const [prevSorteados, setPrevSorteados] = useState(dadosSorteados);
   const [statusTorneio, setStatusTorneio] = useState(torneio?.status || 'ativo');
   const [abaCopa, setAbaCopa] = useState('grupos');
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalConfig, setModalConfig] = useState({});
 
   if (dadosSorteados !== prevSorteados) {
     setPrevSorteados(dadosSorteados);
@@ -299,7 +408,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
 
   if (!dadosTorneio || !dadosTorneio.chaveamento) {
     return (
-      <div className="w-full text-center py-12 bg-slate-800/60 rounded-2xl border border-slate-700">
+      <div className="w-full text-center py-12 bg-slate-800/60 rounded-md border border-slate-700">
         <p className="text-slate-400">
           Nenhum chaveamento gerado para {torneio?.nome || 'este torneio'} ainda.
         </p>
@@ -310,7 +419,6 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
   const { formato_torneio, chaveamento, classificacao = [] } = dadosTorneio;
   const isFinalizado = statusTorneio === 'finalizado';
 
-  // Atualiza o estado local ao receber novos dados da API
   const handleAtualizarDados = (respostaApi) => {
     if (respostaApi?.dados_sorteados) {
       setDadosTorneio(respostaApi.dados_sorteados);
@@ -322,15 +430,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     }
   };
 
-  // Encerra a etapa atual ou finaliza o torneio no back-end
-  const handleFinalizar = async () => {
-    const textoConfirmacao =
-      formato_torneio === 'copa' && statusTorneio === 'fase_grupos'
-        ? 'Deseja finalizar a Fase de Grupos? Os confrontos do Mata-Mata serão gerados e os placares de grupo bloqueados.'
-        : 'Deseja finalizar o torneio? Todas as alterações de placar serão bloqueadas permanentemente.';
-
-    if (!window.confirm(textoConfirmacao)) return;
-
+  const handleConfirmarFinalizacao = async () => {
     try {
       const resp = await axios.post(`${API_URL}/torneios/${torneio?.id}/finalizar`);
       const novoStatus = resp.data?.novo_status || 'finalizado';
@@ -344,15 +444,41 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
         setAbaCopa('mata_mata');
       }
     } catch (err) {
-      alert(err.response?.data?.detail || 'Erro ao finalizar etapa.');
+      setModalConfig({
+        titulo: 'Erro ao Finalizar',
+        mensagem: err.response?.data?.detail || 'Não foi possível concluir a etapa atual.',
+        textoBotao: 'Entendi',
+        isAlerta: true,
+        onConfirm: null,
+      });
+      setModalOpen(true);
     }
   };
 
-  // Processa e desenha a árvore de confrontos eliminatórios
+  const handleFinalizar = () => {
+    const isGrupos = formato_torneio === 'copa' && statusTorneio === 'fase_grupos';
+    setModalConfig({
+      titulo: isGrupos ? 'Finalizar Fase de Grupos' : 'Finalizar Torneio',
+      mensagem: isGrupos
+        ? 'Deseja encerrar a Fase de Grupos? Os confrontos do Mata-Mata serão gerados e os placares de grupo bloqueados.'
+        : 'Deseja finalizar o torneio? Todas as alterações de placar serão bloqueadas permanentemente.',
+      textoBotao: isGrupos ? 'Avançar para Mata-Mata' : 'Encerrar Torneio',
+      isAlerta: false,
+      onConfirm: handleConfirmarFinalizacao,
+    });
+    setModalOpen(true);
+  };
+
+  // Árvore eliminatória
   const renderArvoreEliminatoria = (arvoreDados, isBloqueadoPorFase = false) => {
     const arvoreProcessada = {};
     
     Object.keys(arvoreDados || {}).forEach((fase) => {
+      const jogosComIndexOriginal = (arvoreDados[fase] || []).map((j, idxOriginal) => ({
+        ...j,
+        _idxOriginal: idxOriginal,
+      }));
+
       if (
         fase === 'Final' ||
         fase === 'Terceiro Lugar' ||
@@ -362,9 +488,9 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
         if (!arvoreProcessada['Decisões']) {
           arvoreProcessada['Decisões'] = [];
         }
-        arvoreProcessada['Decisões'].push(...arvoreDados[fase]);
+        arvoreProcessada['Decisões'].push(...jogosComIndexOriginal);
       } else {
-        arvoreProcessada[fase] = arvoreDados[fase];
+        arvoreProcessada[fase] = jogosComIndexOriginal;
       }
     });
 
@@ -419,7 +545,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                     >
                       {(isFinal || isTerceiro) && (
                         <span
-                          className={`flex flex-row items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
+                          className={`flex flex-row items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-sm border ${
                             isFinal
                               ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-sm'
                               : 'bg-slate-800/80 border-slate-700 text-slate-400 text-[10px]'
@@ -440,7 +566,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                       )}
 
                       <CardPartida
-                        idx={idx}
+                        idx={jogo._idxOriginal ?? idx}
                         jogo={jogo}
                         formato={formato_torneio}
                         rodadaOuFase={jogo.fase || nomeFase}
@@ -460,7 +586,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   };
 
-  // Renderiza a estrutura do Modo Copa (Fase de Grupos + Chaveamento)
+  // Estrutura do Modo Copa
   const renderCopa = () => {
     const grupos = chaveamento.grupos || {};
     const arvoreMataMata = chaveamento.arvore || {};
@@ -470,11 +596,11 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     return (
       <div className="space-y-8">
         <div className="flex justify-center border-b border-slate-700 pb-4">
-          <div className="flex bg-slate-900 p-1 rounded-xl border border-slate-700">
+          <div className="flex bg-slate-900 p-1 rounded-md border border-slate-700">
             <button
               type="button"
               onClick={() => setAbaCopa('grupos')}
-              className={`px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+              className={`px-6 py-2 rounded-sm text-xs font-black uppercase tracking-wider transition-all ${
                 abaCopa === 'grupos'
                   ? 'bg-emerald-500 text-slate-950 shadow-md'
                   : 'text-slate-400 hover:text-white'
@@ -485,7 +611,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
             <button
               type="button"
               onClick={() => setAbaCopa('mata_mata')}
-              className={`flex items-center justify-center gap-1.5 px-6 py-2 rounded-lg text-xs font-black uppercase tracking-wider transition-all ${
+              className={`flex items-center justify-center gap-1.5 px-6 py-2 rounded-sm text-xs font-black uppercase tracking-wider transition-all ${
                 abaCopa === 'mata_mata'
                   ? 'bg-emerald-500 text-slate-950 shadow-md'
                   : 'text-slate-400 hover:text-white'
@@ -505,7 +631,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                 : classificacao[nomeGrupo] || [];
 
               return (
-                <div key={nomeGrupo} className="bg-slate-800/90 border border-slate-700 rounded-xl overflow-hidden shadow-xl flex flex-col justify-between">
+                <div key={nomeGrupo} className="bg-slate-800/90 border border-slate-700 rounded-md overflow-hidden shadow-xl flex flex-col justify-between">
                   <div>
                     <div className="bg-slate-900/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
                       <h4 className="font-extrabold text-emerald-400 uppercase tracking-wider text-sm">{nomeGrupo}</h4>
@@ -537,7 +663,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
         ) : (
           <div>
             {inFaseGrupos && (
-              <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-xs text-center font-bold">
+              <div className="mb-4 p-3 bg-amber-500/10 border border-amber-500/30 rounded-sm text-amber-300 text-xs text-center font-bold">
                 Conclua e finalize a Fase de Grupos para habilitar os jogos do Mata-Mata!
               </div>
             )}
@@ -548,7 +674,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   };
 
-  // Renderiza a tabela e rodadas de Pontos Corridos
+  // Pontos Corridos
   const renderPontosCorridos = () => {
     const tabela = chaveamento.tabela || [];
     const totalRodadas = chaveamento.total_rodadas || 1;
@@ -567,7 +693,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
             <button
               key={num}
               onClick={() => setRodadaSelecionada(num)}
-              className={`px-3.5 py-2 rounded-lg text-xs font-extrabold transition-all ${
+              className={`px-3.5 py-2 rounded-sm text-xs font-extrabold transition-all ${
                 rodadaSelecionada === num
                   ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20'
                   : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'
@@ -605,12 +731,12 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
       {formato_torneio === 'pontos_corridos' && renderPontosCorridos()}
       {formato_torneio === 'mata_mata' && renderArvoreEliminatoria(chaveamento.arvore, isFinalizado)}
 
-      {/* Botão para finalizar fase ou encerrar o torneio com ícone de apito */}
+      {/* Botão para finalizar fase ou encerrar o torneio */}
       {!isFinalizado ? (
         <div className="flex justify-center pt-4 border-t border-slate-700/60">
           <button
             onClick={handleFinalizar}
-            className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider px-6 py-3 rounded-xl shadow-lg transition-all"
+            className="flex items-center justify-center gap-2 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs uppercase tracking-wider px-6 py-3 rounded-md shadow-lg transition-all"
           >
             <img src={whistleIcon} alt="Apito" className="w-4 h-4 shrink-0" />
             <span>
@@ -621,10 +747,17 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           </button>
         </div>
       ) : (
-        <div className="text-center py-4 bg-slate-800/80 border border-slate-700 rounded-xl text-emerald-400 font-bold text-sm">
+        <div className="text-center py-4 bg-slate-800/80 border border-slate-700 rounded-md text-emerald-400 font-bold text-sm">
           ✓ Torneio Finalizado
         </div>
       )}
+
+      {/* Modal Customizado */}
+      <ModalConfirmacao
+        isOpen={modalOpen}
+        onClose={() => setModalOpen(false)}
+        {...modalConfig}
+      />
     </div>
   );
 }
