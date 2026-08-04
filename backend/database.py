@@ -3,7 +3,7 @@ from sqlalchemy import create_engine, Column, String, Integer, DateTime, Foreign
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
-# Configuração da conexão com o banco SQLite local
+# Configura a conexão com o banco de dados SQLite local
 SQLALCHEMY_DATABASE_URL = "sqlite:///./banco.db"
 
 engine = create_engine(
@@ -15,7 +15,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
 
-# Definição das tabelas e relacionamentos do sistema no banco de dados
+# Tabela principal que armazena os torneios e suas metadados de acesso
 class Torneio(Base):
     __tablename__ = "torneios"
 
@@ -31,6 +31,7 @@ class Torneio(Base):
     partidas = relationship("Partida", back_populates="torneio")
 
 
+# Tabela que representa os clubes e jogadores cadastrados em cada torneio
 class Participante(Base):
     __tablename__ = "participantes"
 
@@ -44,6 +45,7 @@ class Participante(Base):
     torneio = relationship("Torneio", back_populates="participantes")
 
 
+# Tabela para registro dos confrontos, fases eliminatórias, rodadas e placares
 class Partida(Base):
     __tablename__ = "partidas"
 
@@ -61,5 +63,5 @@ class Partida(Base):
     torneio = relationship("Torneio", back_populates="partidas")
 
 
-# Cria o arquivo de banco e estrutura as tabelas fisicamente
+# Inicializa fisicamente as tabelas no arquivo SQLite caso ainda não existam
 Base.metadata.create_all(bind=engine)

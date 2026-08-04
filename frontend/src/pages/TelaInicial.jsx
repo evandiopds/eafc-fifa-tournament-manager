@@ -114,7 +114,7 @@ export default function TelaInicial({ onTorneioAcessado }) {
         {/* Cabeçalho */}
         <div className="text-center mb-6 border-b border-slate-800 pb-4">
           <h1 className="text-3xl font-extrabold text-white tracking-wider">
-            FUT <span className="text-emerald-400">MANAGER</span>
+            E-FUT <span className="text-emerald-400">MANAGER</span>
           </h1>
           <p className="text-slate-400 text-xs mt-1 uppercase tracking-widest font-semibold">
             {abaAtual === 'acessar'
@@ -158,7 +158,7 @@ export default function TelaInicial({ onTorneioAcessado }) {
                   required
                   value={nomeOuId}
                   onChange={(e) => setNomeOuId(e.target.value)}
-                  placeholder="Ex: Brasileirão"
+                  placeholder="Digite o nome do torneio"
                   className="w-full bg-slate-950 border border-slate-700 rounded-sm px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors text-sm"
                 />
               </div>
@@ -173,7 +173,7 @@ export default function TelaInicial({ onTorneioAcessado }) {
                     required
                     value={senha}
                     onChange={(e) => setSenha(e.target.value)}
-                    placeholder="••••••••"
+                    placeholder="Digite a senha do torneio"
                     className="w-full bg-slate-950 border border-slate-700 rounded-sm pl-4 pr-11 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors text-sm"
                   />
                   <button
@@ -233,7 +233,7 @@ export default function TelaInicial({ onTorneioAcessado }) {
                   required
                   value={nomeOuId}
                   onChange={(e) => setNomeOuId(e.target.value)}
-                  placeholder="Ex: Brasileirão"
+                  placeholder="Digite o nome do torneio"
                   className="w-full bg-slate-950 border border-slate-700 rounded-sm px-4 py-2.5 text-white placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors text-sm"
                 />
               </div>

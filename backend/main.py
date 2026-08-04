@@ -20,7 +20,7 @@ from standings import (
 )
 
 
-# Rotina em segundo plano para excluir torneios inativos há mais de 30 dias
+# Executa varredura em segundo plano para excluir torneios sem acesso há mais de 30 dias
 async def rotina_limpeza_banco():
     while True:
         db = database.SessionLocal()
@@ -42,6 +42,7 @@ async def rotina_limpeza_banco():
         await asyncio.sleep(864000)
 
 
+# Gerencia o ciclo de vida da aplicação FastAPI acionando e encerrando a limpeza automática
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task = asyncio.create_task(rotina_limpeza_banco())
@@ -60,6 +61,7 @@ app.add_middleware(
 )
 
 
+# Abre e gerencia a sessão de conexão com o banco de dados por requisição
 def get_db():
     db = database.SessionLocal()
     try:
@@ -68,6 +70,7 @@ def get_db():
         db.close()
 
 
+# Modelos Pydantic para validação dos dados recebidos nas requisições HTTP
 class Jogador(BaseModel):
     nome: str
     nivel: str
@@ -110,6 +113,7 @@ class PlacarRequest(BaseModel):
     penaltis_visitante: Optional[int] = None
 
 
+# Extrai de forma segura o nome da equipe a partir de strings ou objetos
 def obter_nome_time(item):
     if not item:
         return None
@@ -120,7 +124,7 @@ def obter_nome_time(item):
     return None
 
 
-# Reconstrói a estrutura de chaveamento e classificação a partir do banco de dados
+# Consulta o banco e monta o JSON estruturado do chaveamento, tabelas e confrontos
 def montar_dados_torneio(db: Session, torneio: database.Torneio):
     participantes_db = db.query(database.Participante).filter(
         database.Participante.torneio_id == torneio.id
@@ -172,7 +176,7 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
         "confrontos": partidas_formatadas,
     }
 
-    # Reconstrói a árvore preservando listas isoladas de Final e Terceiro Lugar
+    # Reconstrói a árvore de Mata-Mata preservando listas de Final e Terceiro Lugar
     if torneio.formato == "mata_mata":
         arvore = defaultdict(list)
         for j in partidas_formatadas:
@@ -182,7 +186,6 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
 
     elif torneio.formato == "pontos_corridos":
         chaveamento_reconstruido["tabela"] = partidas_formatadas
-        # Obtém o total de rodadas real existente no banco para não cortar jogos em chaves ímpares com BYE
         max_rodadas = max([j.get("rodada", 1) for j in partidas_formatadas], default=1) if partidas_formatadas else 1
         chaveamento_reconstruido["total_rodadas"] = max_rodadas
         chaveamento_reconstruido["classificacao"] = calcular_tabela_classificacao(db, torneio.id)
@@ -209,7 +212,7 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
     }
 
 
-# Atualiza o formato do torneio antes de gerar o chaveamento (Task #38)
+# Permite corrigir o formato da competição exclusivamente antes da geração de partidas
 @app.put("/api/torneios/{torneio_id}/formato")
 def atualizar_formato_torneio(
     torneio_id: str, payload: FormatoUpdate, db: Session = Depends(get_db)
@@ -236,7 +239,7 @@ def atualizar_formato_torneio(
     }
 
 
-# Marca o torneio como finalizado e trava alterações futuras (Task #40) + Transição da Copa
+# Encerra fases (ex: Grupos para Mata-Mata) ou o torneio completo bloqueando novas edições
 @app.post("/api/torneios/{torneio_id}/finalizar")
 def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
     torneio = db.query(database.Torneio).filter(database.Torneio.id == torneio_id).first()
@@ -245,7 +248,7 @@ def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
 
     status_atual = getattr(torneio, "status", "ativo")
 
-    # 1. Modo Copa: Finalizar Fase de Grupos
+    # Transição no Modo Copa: da Fase de Grupos para o Mata-Mata
     if torneio.formato == "copa" and status_atual in ["ativo", "fase_grupos"]:
         pendentes = db.query(database.Partida).filter(
             database.Partida.torneio_id == torneio_id,
@@ -275,7 +278,7 @@ def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
             "dados_sorteados": dados_atualizados,
         }
 
-    # 2. Finalização Geral do Torneio (Mata-Mata, Pontos Corridos ou Fim da Copa)
+    # Finalização geral para Mata-Mata, Pontos Corridos ou encerramento final da Copa
     pendentes_geral = db.query(database.Partida).filter(
         database.Partida.torneio_id == torneio_id,
         database.Partida.status == "pendente"
@@ -300,6 +303,7 @@ def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
     }
 
 
+# Processa o sorteio, gera chaves e persiste participantes e partidas no banco
 @app.post("/api/sorteio/gerar")
 def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db)):
     lista_jogadores = [{"nome": j.nome, "nivel": j.nivel} for j in payload.jogadores]
@@ -395,6 +399,7 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
     }
 
 
+# Cria um novo registro de torneio validando regras para o nome (ID) e senha
 @app.post("/api/torneios", status_code=201)
 def criar_torneio(torneio: TorneioCreate, db: Session = Depends(get_db)):
     val_id = validar_id_torneio(torneio.nome)
@@ -428,6 +433,7 @@ def criar_torneio(torneio: TorneioCreate, db: Session = Depends(get_db)):
     }
 
 
+# Autentica e concede acesso ao torneio utilizando o par ID Único + Senha
 @app.post("/api/torneios/acessar")
 def acessar_torneio(payload: TorneioAcesso, db: Session = Depends(get_db)):
     torneio = db.query(database.Torneio).filter(
@@ -458,6 +464,7 @@ def acessar_torneio(payload: TorneioAcesso, db: Session = Depends(get_db)):
     }
 
 
+# Registra ou edita placares de partidas efetuando avanços em árvores eliminatórias
 @app.post("/api/torneios/placar")
 def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_db)):
     torneio = db.query(database.Torneio).filter(database.Torneio.id == payload.torneio_id).first()
@@ -472,7 +479,7 @@ def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_d
             detail="Este torneio já foi finalizado e os placares não podem mais ser alterados!"
         )
 
-    # Trava: Não permite registrar jogos eliminatórios no Modo Copa se ainda estiver na Fase de Grupos
+    # Trava: impede registro de jogos de eliminatórias da Copa durante a Fase de Grupos
     if (
         payload.formato_torneio == "copa"
         and status_atual in ["ativo", "fase_grupos"]
@@ -496,7 +503,6 @@ def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_d
     if payload.partida_id:
         partida = db.query(database.Partida).filter(database.Partida.id == payload.partida_id).first()
     else:
-        # Busca partida por fase limpa ou aproximação (fallback resiliente para Terceiro Lugar/Final)
         fase_buscada = payload.rodada_ou_fase.strip()
         partidas_fase = db.query(database.Partida).filter(
             database.Partida.torneio_id == payload.torneio_id,
@@ -524,7 +530,7 @@ def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_d
     db.commit()
     db.refresh(partida)
 
-    # Avanço na árvore apenas nos modos eliminatórios puros ou na fase eliminatória da Copa
+    # Aciona o avanço de fase na árvore eliminatória (Mata-Mata ou fases finais da Copa)
     if payload.formato_torneio == "mata_mata" or (
         payload.formato_torneio == "copa" and "Grupo" not in payload.rodada_ou_fase
     ):

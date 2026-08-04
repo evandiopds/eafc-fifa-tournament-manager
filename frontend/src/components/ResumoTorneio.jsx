@@ -5,6 +5,7 @@ import { Trophy, Award, TrendingUp, Target, BarChart3, ShieldAlert, Sparkles, Sc
 import { buscarTime } from '../utils/teamSearch';
 import escudoGen from '../assets/escudo_gen.svg';
 
+// Obtém o escudo do clube no banco local ou retorna o escudo padrão
 function getEscudo(nomeTime) {
   if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') return escudoGen;
   const timeEncontrado = buscarTime(nomeTime);
@@ -12,7 +13,7 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
-// Extrai de forma segura o nome do jogador/dupla a partir de um objeto participante ou string
+// Extrai de forma segura o nome do jogador ou dupla de um participante
 function extrairNomeParticipante(participante) {
   if (!participante) return null;
   if (typeof participante === 'string') return null;
@@ -25,7 +26,7 @@ function extrairNomeParticipante(participante) {
   return participante.nome || participante.jogador || null;
 }
 
-// Card visual de partida em Modo Leitura para exibir goleadas e jogos marcantes
+// Card visual para partidas marcantes (Maior Goleada, Chuva de Gols, etc.)
 function CardJogoLeitura({ jogo, tagTitulo, tagCor = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40', subtexto }) {
   if (!jogo) return null;
 
@@ -44,7 +45,7 @@ function CardJogoLeitura({ jogo, tagTitulo, tagCor = 'bg-emerald-500/20 text-eme
       </div>
 
       <div className="space-y-2.5 my-auto">
-        {/* Time Casa */}
+        {/* Time da Casa */}
         <div className="flex items-center justify-between gap-2 bg-slate-900/60 px-3 py-2 rounded-sm border border-slate-800/60">
           <div className="flex items-center gap-2.5 overflow-hidden">
             <img src={getEscudo(nomeCasa)} alt={nomeCasa} className="w-6 h-6 object-contain shrink-0" />
@@ -76,13 +77,16 @@ function CardJogoLeitura({ jogo, tagTitulo, tagCor = 'bg-emerald-500/20 text-eme
   );
 }
 
-export default function ResumoTorneio({ dadosTorneio }) {
+export default function ResumoTorneio({ dadosTorneio, torneio }) {
   const resumoRef = useRef(null);
   const [gerandoImagem, setGerandoImagem] = useState(false);
 
   if (!dadosTorneio) return null;
 
   const { formato_torneio, chaveamento = {}, classificacao = [] } = dadosTorneio;
+
+  const nomeOficialTorneio = torneio?.nome || dadosTorneio?.nome || dadosTorneio?.nome_torneio || dadosTorneio?.torneio?.nome || 'TORNEIO OFICIAL';
+  const dataFinalizacao = new Date().toLocaleDateString('pt-BR');
 
   // 1. EXTRAÇÃO DE TODOS OS JOGOS REALIZADOS NO TORNEIO
   const extrairJogos = () => {
@@ -117,17 +121,16 @@ export default function ResumoTorneio({ dadosTorneio }) {
     });
   }
 
-  // Função para definir peso de relevância (Fase no Mata-Mata vs. Posição no Ranking)
+  // Define peso de relevância (Fase decisiva no Mata-Mata vs. Posição no Ranking)
   const obterPesoRelevancia = (jogoOuTimeNome) => {
     if (formato_torneio === 'pontos_corridos') {
       const nomeTime = typeof jogoOuTimeNome === 'string' 
         ? jogoOuTimeNome 
         : (typeof jogoOuTimeNome?.casa === 'string' ? jogoOuTimeNome.casa : jogoOuTimeNome?.casa?.time);
       const pos = mapaPosicaoClassificacao[nomeTime] || 99;
-      return 100 - pos; // Quanto menor a posição (1º lugar), maior o peso
+      return 100 - pos;
     }
 
-    // Em Mata-Mata ou Copa, valoriza a fase da partida
     const fase = jogoOuTimeNome?.fase || '';
     if (fase === 'Final') return 100;
     if (fase === 'Terceiro Lugar') return 90;
@@ -194,7 +197,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
 
   const podio = obterPodio();
 
-  // 3. CÁLCULO DE ESTATÍSTICAS POR TIME
+  // 3. CÁLCULO DE ESTATÍSTICAS POR CLUBE
   const calcularEstatisticas = () => {
     const mapaTimes = {};
 
@@ -270,11 +273,10 @@ export default function ResumoTorneio({ dadosTorneio }) {
 
   const statsTimes = calcularEstatisticas();
 
-  // 4. CÁLCULO DAS 4 DESTAQUES / HONRA AO MÉRITO
+  // 4. CÁLCULO DOS DESTAQUES DO TORNEIO
   const calcularDestaques = () => {
     if (jogosFinalizados.length === 0 || statsTimes.length === 0) return {};
 
-    // 1. Maior Goleada
     const jogosOrdenadosGoleada = [...jogosFinalizados].sort((a, b) => {
       const diffA = Math.abs(Number(a.gols_casa) - Number(a.gols_visitante));
       const diffB = Math.abs(Number(b.gols_casa) - Number(b.gols_visitante));
@@ -288,7 +290,6 @@ export default function ResumoTorneio({ dadosTorneio }) {
     });
     const jogoMaiorGoleada = jogosOrdenadosGoleada[0];
 
-    // Badge Dinâmica
     let tagGoleada = 'MAIOR GOLEADA';
     let corGoleada = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
     if (jogoMaiorGoleada) {
@@ -302,7 +303,6 @@ export default function ResumoTorneio({ dadosTorneio }) {
       }
     }
 
-    // 2. Defesa de Ferro
     const timesOrdenadosDefesa = [...statsTimes].sort((a, b) => {
       if (Number(a.mediaSofridos) !== Number(b.mediaSofridos)) {
         return Number(a.mediaSofridos) - Number(b.mediaSofridos);
@@ -312,7 +312,6 @@ export default function ResumoTorneio({ dadosTorneio }) {
     });
     const timeDefesaFerro = timesOrdenadosDefesa[0];
 
-    // 3. Chuva de Gols
     const jogosOrdenadosChuva = [...jogosFinalizados].sort((a, b) => {
       const totalA = Number(a.gols_casa) + Number(a.gols_visitante);
       const totalB = Number(b.gols_casa) + Number(b.gols_visitante);
@@ -328,7 +327,6 @@ export default function ResumoTorneio({ dadosTorneio }) {
     });
     const jogoChuvaGols = jogosOrdenadosChuva[0];
 
-    // 4. Rei do Empate
     const timesOrdenadosEmpate = [...statsTimes].sort((a, b) => {
       if (b.empates !== a.empates) return b.empates - a.empates;
       if (b.jogos !== a.jogos) return b.jogos - a.jogos;
@@ -348,7 +346,6 @@ export default function ResumoTorneio({ dadosTorneio }) {
 
   const destaques = calcularDestaques();
 
-  // Ordenação para os Rankings Táticos (Travado em Top 5)
   const rankingTaxaVitoria = [...statsTimes].sort((a, b) => Number(b.taxaVitoria) - Number(a.taxaVitoria)).slice(0, 5);
   const rankingMediaGols = [...statsTimes].sort((a, b) => Number(b.mediaGols) - Number(a.mediaGols)).slice(0, 5);
   const totalGolsTorneio = statsTimes.reduce((acc, curr) => acc + curr.golsPro, 0);
@@ -365,7 +362,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
     return `${textoGols} em ${textoJog}`;
   };
 
-  // 5. GERAÇÃO DO ARQUIVO PNG
+  // 5. GERAÇÃO DO ARQUIVO PNG (Ignorando elementos com data-html2canvas-ignore="true")
   const handleBaixarPng = async () => {
     if (!resumoRef.current) return;
     setGerandoImagem(true);
@@ -373,12 +370,15 @@ export default function ResumoTorneio({ dadosTorneio }) {
     try {
       const dataUrl = await toPng(resumoRef.current, {
         cacheBust: true,
-        backgroundColor: '#020617', // Garante o fundo slate-950 perfeitinho no PNG
+        backgroundColor: '#020617',
         quality: 0.98,
+        filter: (node) => {
+          return !(node.dataset && node.dataset.html2canvasIgnore === 'true');
+        },
       });
 
       const link = document.createElement('a');
-      link.download = `resumo-torneio-${dadosTorneio?.nome || 'fut-manager'}.png`;
+      link.download = `resumo-${nomeOficialTorneio.toLowerCase().replace(/\s+/g, '-')}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -396,25 +396,39 @@ export default function ResumoTorneio({ dadosTorneio }) {
       ref={resumoRef}
       className="w-full bg-slate-900/95 border border-slate-700/80 rounded-md p-6 sm:p-8 shadow-2xl space-y-10 mt-6"
     >
-      {/* Cabeçalho de Encerramento */}
+      {/* Cabeçalho de Encerramento com Data e Nome Discretos no Topo */}
       <div className="flex flex-col sm:flex-row items-center justify-between border-b border-slate-800 pb-5 gap-4">
         <div className="text-center sm:text-left">
+          {/* Nome do Torneio e Data super discretos ACIMA da etiqueta */}
+          <div className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mb-1.5 flex items-center justify-center sm:justify-start gap-1.5">
+            <span>Torneio: {nomeOficialTorneio}</span>
+            <span>•</span>
+            <span>Finalizado em {dataFinalizacao}</span>
+          </div>
+
+          {/* Etiqueta Verde */}
           <div className="inline-flex items-center justify-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3.5 py-1 rounded-sm text-emerald-400 text-xs font-black uppercase tracking-widest mb-2">
             <BarChart3 className="w-3.5 h-3.5" />
             <span>Estatísticas de Encerramento</span>
           </div>
+
+          {/* Título Principal */}
           <h3 className="text-2xl sm:text-3xl font-extrabold text-white tracking-wider">
             PÓDIO & <span className="text-emerald-400">DESEMPENHO GERAL</span>
           </h3>
+
+          {/* Resumo de partidas e gols na parte inferior */}
           <p className="text-slate-400 text-xs uppercase tracking-wider mt-1">
             {jogosFinalizados.length} partidas concluídas • {totalGolsTorneio} Gols marcados
           </p>
         </div>
 
+        {/* Botão de exportação ocultado na captura da imagem */}
         <button
           type="button"
           onClick={handleBaixarPng}
           disabled={gerandoImagem}
+          data-html2canvas-ignore="true"
           className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 hover:text-white border border-slate-700 px-4 py-2.5 rounded-sm text-xs font-black uppercase tracking-wider transition-all shadow-md shrink-0 w-full sm:w-auto"
           title="Baixar imagem PNG das estatísticas"
         >
@@ -423,7 +437,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
         </button>
       </div>
 
-      {/* PÓDIO OFICIAL COM ENTRADA EM CASCATA */}
+      {/* PÓDIO OFICIAL EM CASCATA */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* 2º LUGAR (PRATA) */}
         <motion.div
@@ -448,7 +462,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
           )}
         </motion.div>
 
-        {/* 1º LUGAR (OURO - COM DESTAQUE EM ESCALA) */}
+        {/* 1º LUGAR (OURO) */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1.05 }}
@@ -510,7 +524,7 @@ export default function ResumoTorneio({ dadosTorneio }) {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* 1. MAIOR GOLEADA (MASSACRE / SURRA) */}
+          {/* 1. MAIOR GOLEADA */}
           <div className="flex flex-col">
             <CardJogoLeitura
               jogo={destaques.jogoMaiorGoleada}

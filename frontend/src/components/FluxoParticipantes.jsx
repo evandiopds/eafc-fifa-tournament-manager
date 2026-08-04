@@ -1,42 +1,40 @@
-import { Dices, PencilLine, Trash2, LogOut } from 'lucide-react';
+import { Dices, PencilLine, Trash2, LogOut, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
+// Importa dinamicamente imagens para o plano de fundo temático
 const modulosCapas = import.meta.glob('../assets/capas/*.{png,jpg,jpeg,webp}', { eager: true });
 const listaCapas = Object.values(modulosCapas).map((m) => m.default).slice(0, 12);
 
 export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
+  // Configurações do Torneio
   const [formatoTorneio, setFormatoTorneio] = useState(torneio?.formato || 'mata_mata');
-  
   const [modoEntrada, setModoEntrada] = useState('aleatorio');
   const [modoJogo, setModoJogo] = useState('solo');
   const [balanceado, setBalanceado] = useState(true); 
 
+  // Estados de Entrada - Modo Aleatório
   const [inputJogador, setInputJogador] = useState('');
   const [inputNivel, setInputNivel] = useState('Prata');
   const [inputTime, setInputTime] = useState('');
   
-  const [jogadores, setJogadores] = useState([
-    { nome: 'Evandio', nivel: 'Ouro' },
-    { nome: 'Lucas', nivel: 'Ouro' },
-    { nome: 'Ana', nivel: 'Prata' },
-    { nome: 'Pedro', nivel: 'Prata' }
-  ]);
-  
-  const [times, setTimes] = useState([
-    'Real Madrid', 'Barcelona', 'Bayern de Munique', 'Manchester City'
-  ]);
+  // Listas limpas sem dados pré-cadastrados (Mocks removidos)
+  const [jogadores, setJogadores] = useState([]);
+  const [times, setTimes] = useState([]);
 
+  // Estados de Entrada - Modo Manual
   const [inputNomeManual, setInputNomeManual] = useState('');
   const [inputTimeManual, setInputTimeManual] = useState('');
   const [paresManuais, setParesManuais] = useState([]);
 
+  // Controle de UI e Avisos
   const [carregando, setCarregando] = useState(false);
   const [erro, setErro] = useState(null);
 
+  // Adiciona jogador garantindo que o nick seja único na lista
   const adicionarJogador = (e) => {
     e.preventDefault();
     const nomeLimpo = inputJogador.trim();
@@ -71,6 +69,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
     setTimes(times.filter((_, i) => i !== index));
   };
 
+  // Adiciona par no Modo Manual com trava contra duplicidade de nick
   const adicionarParManual = (e) => {
     e.preventDefault();
     const nomeLimpo = inputNomeManual.trim();
@@ -99,6 +98,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
     setParesManuais(paresManuais.filter((_, i) => i !== index));
   };
 
+  // Dispara a geração das tabelas ou chaveamentos no backend
   const handleGerarTorneio = async () => {
     setErro(null);
     setCarregando(true);
@@ -154,6 +154,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
 
   return (
     <div className="fixed inset-0 w-full h-full flex items-center justify-center overflow-hidden bg-slate-950 p-3 sm:p-4">
+      {/* Background Temático */}
       {listaCapas.length > 0 && (
         <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center overflow-hidden">
           <div className="grid grid-cols-4 gap-4 w-[130vw] min-h-[130vh] -rotate-6 scale-110 opacity-25">
@@ -177,6 +178,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
         transition={{ duration: 0.25, ease: 'easeOut' }}
         className="relative z-10 w-full max-w-4xl mx-auto max-h-[92vh] overflow-y-auto bg-slate-900/95 border border-slate-700/80 rounded-md p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-md"
       >
+        {/* Cabeçalho */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-800 pb-4 sm:pb-5 mb-4 sm:mb-5 gap-4">
           <div>
             <h2 className="text-xl sm:text-2xl font-extrabold text-white">
@@ -220,7 +222,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           </div>
         </div>
 
-        {/* Seletor de Formato: Empilha no mobile e expande no tablet/desktop */}
+        {/* Seletor de Formato */}
         <div className="bg-slate-950/80 border border-slate-800 px-4 sm:px-5 py-3.5 rounded-sm mb-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div>
             <p className="text-sm font-bold text-white">Formato da Competição</p>
@@ -263,6 +265,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           </div>
         </div>
 
+        {/* Abas Modo Aleatório vs Modo Manual */}
         <div className="flex flex-col sm:flex-row gap-2 mb-5">
           <button
             type="button"
@@ -290,6 +293,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           </button>
         </div>
 
+        {/* Sorteio Balanceado (Apenas visível em Duplas no Modo Aleatório) */}
         <AnimatePresence>
           {modoEntrada === 'aleatorio' && modoJogo === 'duplas' && (
             <motion.div
@@ -317,6 +321,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           )}
         </AnimatePresence>
 
+        {/* Alerta de Erros */}
         <AnimatePresence>
           {erro && (
             <motion.div
@@ -330,6 +335,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           )}
         </AnimatePresence>
 
+        {/* Conteúdo Dinâmico por Modo */}
         <AnimatePresence mode="wait">
           {modoEntrada === 'aleatorio' ? (
             <motion.div
@@ -340,36 +346,36 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
               transition={{ duration: 0.18 }}
               className="grid grid-cols-1 md:grid-cols-2 gap-5"
             >
+              {/* 1. Lista de Jogadores */}
               <div className="bg-slate-950/60 p-4 rounded-sm border border-slate-800">
                 <h3 className="text-xs font-black uppercase tracking-wider text-emerald-400 mb-3">
                   1. Lista de Jogadores ({jogadores.length})
                 </h3>
-                <form onSubmit={adicionarJogador} className="flex flex-col gap-2 mb-4">
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={inputJogador}
-                      onChange={(e) => setInputJogador(e.target.value)}
-                      placeholder="Nome do Jogador"
-                      className="flex-1 bg-slate-900 border border-slate-700 rounded-sm px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
-                    />
-                    {modoJogo === 'duplas' && (
-                      <select
-                        value={inputNivel}
-                        onChange={(e) => setInputNivel(e.target.value)}
-                        className="bg-slate-900 border border-slate-700 rounded-sm px-2 text-xs font-bold text-emerald-400 focus:outline-none"
-                      >
-                        <option value="Ouro">Ouro</option>
-                        <option value="Prata">Prata</option>
-                        <option value="Bronze">Bronze</option>
-                      </select>
-                    )}
-                  </div>
+                <form onSubmit={adicionarJogador} className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={inputJogador}
+                    onChange={(e) => setInputJogador(e.target.value)}
+                    placeholder="Nome do Jogador"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-sm px-3 py-2 text-sm text-white focus:outline-none focus:border-emerald-500"
+                  />
+                  {modoJogo === 'duplas' && (
+                    <select
+                      value={inputNivel}
+                      onChange={(e) => setInputNivel(e.target.value)}
+                      className="bg-slate-900 border border-slate-700 rounded-sm px-2 text-xs font-bold text-emerald-400 focus:outline-none"
+                    >
+                      <option value="Ouro">Ouro</option>
+                      <option value="Prata">Prata</option>
+                      <option value="Bronze">Bronze</option>
+                    </select>
+                  )}
                   <button
                     type="submit"
-                    className="w-full bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black py-2 rounded-sm text-xs uppercase tracking-wider"
+                    title="Adicionar Jogador"
+                    className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black px-5 rounded-sm flex items-center justify-center transition-all shrink-0"
                   >
-                    Adicionar Jogador
+                    <Plus className="w-5 h-5 stroke-[3]" />
                   </button>
                 </form>
 
@@ -402,6 +408,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                 </div>
               </div>
 
+              {/* 2. Lista de Clubes / Times */}
               <div className="bg-slate-950/60 p-4 rounded-sm border border-slate-800">
                 <h3 className="text-xs font-black uppercase tracking-wider text-emerald-400 mb-3">
                   2. Times Disponíveis ({times.length})
@@ -416,9 +423,10 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                   />
                   <button
                     type="submit"
-                    className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black px-4 rounded-sm text-sm"
+                    title="Adicionar Time"
+                    className="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-black px-5 rounded-sm flex items-center justify-center transition-all shrink-0"
                   >
-                    +
+                    <Plus className="w-5 h-5 stroke-[3]" />
                   </button>
                 </form>
 
@@ -521,6 +529,7 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
           )}
         </AnimatePresence>
 
+        {/* Rodapé e Ações Finais */}
         <div className="mt-6 pt-5 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-4">
           <button
             type="button"

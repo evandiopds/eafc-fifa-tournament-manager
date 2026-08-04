@@ -12,6 +12,7 @@ import ResumoTorneio from './ResumoTorneio';
 
 const API_URL = 'http://127.0.0.1:8000/api';
 
+// Busca o escudo oficial do time ou retorna o escudo padrão
 function getEscudo(nomeTime) {
   if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') {
     return escudoOff || escudoGen;
@@ -25,6 +26,7 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
+// Extrai clube, jogador(es) e id do participante
 function getDadosParticipante(alvo) {
   if (!alvo) return { clube: 'Aguardando', jogador: null, id: null };
   if (typeof alvo === 'string') return { clube: alvo, jogador: null, id: null };
@@ -44,6 +46,7 @@ function getDadosParticipante(alvo) {
   return { clube, jogador, id };
 }
 
+// Modal de confirmação para encerramento de fases, torneios e avisos táticos
 function ModalConfirmacao({ isOpen, onClose, onConfirm, titulo, mensagem, textoBotao = 'Confirmar', isAlerta = false }) {
   return (
     <AnimatePresence>
@@ -110,6 +113,7 @@ function ModalConfirmacao({ isOpen, onClose, onConfirm, titulo, mensagem, textoB
   );
 }
 
+// Card individual de partida com edição de placar, W.O. e pênaltis
 function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado, isEliminatorio = false }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
@@ -148,6 +152,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     penVisitante !== '' &&
     penVisitante != null;
 
+  // Estiliza equipes vencedoras em jogos de Final ou 3º Lugar finalizados
   const getPodioStyles = (isCasa) => {
     if (!jogo.status || jogo.status !== 'finalizada') return '';
 
@@ -177,6 +182,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     return '';
   };
 
+  // Envia placar ao backend
   const salvarNoBackend = async (casaGols, foraGols, casaPen = null, foraPen = null) => {
     setCarregando(true);
     setStatusMsg(null);
@@ -332,7 +338,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         />
       </div>
 
-      {/* Exibição de placar dos pênaltis */}
+      {/* Placar dos Pênaltis */}
       {temPenaltis && (
         <div className="flex items-center justify-center gap-1.5 py-1 bg-slate-900/80 rounded-sm border border-emerald-500/30 text-emerald-400 font-bold text-xs mt-1">
           <img src={penaltyIcon} alt="Pênaltis" className="w-3.5 h-3.5 shrink-0" />
@@ -340,7 +346,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         </div>
       )}
 
-      {/* Botões de controle */}
+      {/* Controles de Placar */}
       {!bloqueado && (
         <div className="flex flex-col gap-1.5 mt-1 pt-2 border-t border-slate-700/40">
           <div className="flex items-center justify-between">
@@ -427,6 +433,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
   const [prevSorteados, setPrevSorteados] = useState(dadosSorteados);
   const [statusTorneio, setStatusTorneio] = useState(torneio?.status || 'ativo');
   const [abaCopa, setAbaCopa] = useState('grupos');
+  const [grupoSelecionado, setGrupoSelecionado] = useState('');
   const [jogosDesempateLocal, setJogosDesempateLocal] = useState({});
 
   const [modalOpen, setModalOpen] = useState(false);
@@ -450,6 +457,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
   const { formato_torneio, chaveamento, classificacao = [] } = dadosTorneio;
   const isFinalizado = statusTorneio === 'finalizado';
 
+  // Verifica igualdade absoluta na pontuação para ativar a Rodada de Desempate (D)
   const verificarEmpateTopo = () => {
     if (formato_torneio !== 'pontos_corridos' || !classificacao || classificacao.length < 2) {
       return { existe: false, times: [] };
@@ -758,14 +766,23 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   };
 
+  // Renderiza a Fase de Grupos com barra de abas (A, B, C...) e jogos dispostos em grade flexível horizontal
   const renderCopa = () => {
     const grupos = chaveamento.grupos || {};
     const arvoreMataMata = chaveamento.arvore || {};
     const nomesGrupos = Object.keys(grupos);
     const inFaseGrupos = statusTorneio === 'fase_grupos' || statusTorneio === 'ativo';
 
+    const grupoAtivo = grupoSelecionado && nomesGrupos.includes(grupoSelecionado)
+      ? grupoSelecionado
+      : (nomesGrupos[0] || '');
+
+    const tabelaGrupo = Array.isArray(classificacao)
+      ? classificacao
+      : classificacao[grupoAtivo] || [];
+
     return (
-      <div className="space-y-8">
+      <div className="space-y-6">
         <div className="flex justify-center border-b border-slate-700 pb-4">
           <div className="flex bg-slate-900 p-1 rounded-md border border-slate-700">
             <button
@@ -802,46 +819,59 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              className="space-y-6"
             >
-              {nomesGrupos.map((nomeGrupo) => {
-                const tabelaGrupo = Array.isArray(classificacao)
-                  ? classificacao
-                  : classificacao[nomeGrupo] || [];
+              {/* Seletor Horizontal de Grupos */}
+              <div className="w-full max-w-full overflow-x-auto pb-2 px-1 flex items-center justify-start sm:justify-center gap-2">
+                <span className="text-xs font-black text-slate-500 uppercase tracking-widest mr-1 shrink-0">
+                  Grupos:
+                </span>
+                {nomesGrupos.map((nomeGrupo) => {
+                  const letraGrupo = nomeGrupo.replace(/Grupo\s+/i, '');
+                  return (
+                    <button
+                      key={nomeGrupo}
+                      type="button"
+                      onClick={() => setGrupoSelecionado(nomeGrupo)}
+                      className={`px-4 py-2 rounded-sm text-xs font-extrabold shrink-0 transition-all ${
+                        grupoAtivo === nomeGrupo
+                          ? 'bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20'
+                          : 'bg-slate-800 text-slate-400 border border-slate-700 hover:text-white'
+                      }`}
+                    >
+                      {letraGrupo}
+                    </button>
+                  );
+                })}
+              </div>
 
-                return (
-                  <div key={nomeGrupo} className="bg-slate-800/90 border border-slate-700 rounded-md overflow-hidden shadow-xl flex flex-col justify-between">
-                    <div>
-                      <div className="bg-slate-900/80 px-5 py-3 border-b border-slate-700 flex justify-between items-center">
-                        <h4 className="font-extrabold text-emerald-400 uppercase tracking-wider text-sm">{nomeGrupo}</h4>
-                      </div>
-                      <div className="p-4 space-y-3 flex flex-col items-center">
-                        {grupos[nomeGrupo].map((item, idx) => (
-                          <CardPartida 
-                            key={`${item.id || idx}-${item.gols_casa}-${item.gols_visitante}`} 
-                            idx={idx} 
-                            jogo={item} 
-                            formato={formato_torneio} 
-                            rodadaOuFase={nomeGrupo}
-                            torneioId={torneio?.id}
-                            onPlacarSalvo={handleAtualizarDados}
-                            isBloqueado={!inFaseGrupos || isFinalizado}
-                            isEliminatorio={false}
-                          />
-                        ))}
-                      </div>
-                    </div>
+              {/* Partidas dispostas na horizontal com quebra automática */}
+              {grupoAtivo && grupos[grupoAtivo] && (
+                <div className="flex flex-wrap items-center justify-center gap-4 w-full">
+                  {grupos[grupoAtivo].map((item, idx) => (
+                    <CardPartida 
+                      key={`${item.id || idx}-${item.gols_casa}-${item.gols_visitante}`} 
+                      idx={idx} 
+                      jogo={item} 
+                      formato={formato_torneio} 
+                      rodadaOuFase={grupoAtivo}
+                      torneioId={torneio?.id}
+                      onPlacarSalvo={handleAtualizarDados}
+                      isBloqueado={!inFaseGrupos || isFinalizado}
+                      isEliminatorio={false}
+                    />
+                  ))}
+                </div>
+              )}
 
-                    <div className="p-3 border-t border-slate-700/60 bg-slate-900/40">
-                      <TabelaClassificacao 
-                        classificacao={tabelaGrupo} 
-                        formato="copa" 
-                        nomeGrupo={nomeGrupo} 
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+              {/* Tabela do Grupo Ativo */}
+              {grupoAtivo && (
+                <TabelaClassificacao 
+                  classificacao={tabelaGrupo} 
+                  formato="copa" 
+                  nomeGrupo={grupoAtivo} 
+                />
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -864,6 +894,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     );
   };
 
+  // Renderiza rodadas e confrontos em grade horizontal responsiva no formato Pontos Corridos
   const renderPontosCorridos = () => {
     const tabela = chaveamento.tabela || [];
     const totalRodadas = chaveamento.total_rodadas || 1;
@@ -879,7 +910,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           </h3>
         </div>
 
-        {/* Seletor de Rodadas adaptado para touch mobile e telas estreitas */}
+        {/* Seletor Horizontal de Rodadas */}
         <div className="w-full max-w-full overflow-x-auto pb-2 px-1 flex items-center justify-start sm:justify-center gap-2">
           {Array.from({ length: totalRodadas }, (_, i) => i + 1).map((num) => (
             <button
@@ -938,7 +969,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.18 }}
-            className="space-y-3 flex flex-col items-center"
+            className="flex flex-wrap items-center justify-center gap-4 w-full"
           >
             {jogosRodada.map((jogo, idx) => (
               <CardPartida 
@@ -993,7 +1024,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: 'easeOut' }}
           >
-            <ResumoTorneio dadosTorneio={dadosTorneio} />
+            <ResumoTorneio dadosTorneio={dadosTorneio} torneio={torneio} />
           </motion.div>
         ) : (
           <motion.div

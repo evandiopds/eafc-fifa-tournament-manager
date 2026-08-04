@@ -26,7 +26,7 @@
     { "nomeOficial": "Liverpool", "sigla": "LIV", "apelidos": ["reds", "lfc"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/0/0c/Liverpool_FC.svg" },
     { "nomeOficial": "Arsenal", "sigla": "ARS", "apelidos": ["gunners"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/5/53/Arsenal_FC.svg" },
     { "nomeOficial": "Tottenham Hotspur", "sigla": "TOT", "apelidos": ["spurs", "tottenham"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/b/b4/Tottenham_Hotspur.svg" },
-    { "nomeOficial": "Newcastle United", "sigla": "NEW", "apelidos": ["magpies", "newcastle"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/5/56/Newcastle_United_Logo.svg" },
+    { "nomeOficial": "Newcastle United", "sigla": "NEW", "apelidos": ["magpies", "newcastle"], "escudo": "" },
     { "nomeOficial": "Aston Villa", "sigla": "AST", "apelidos": ["villa", "villans"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/f/f9/Aston_Villa_FC_crest_%282016%29.svg" },
     { "nomeOficial": "AFC Bournemouth", "sigla": "BOU", "apelidos": ["cherries", "bournemouth"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/e/e5/AFC_Bournemouth_%282013%29.svg" },
     { "nomeOficial": "Brentford", "sigla": "BRE", "apelidos": ["bees"], "escudo": "https://upload.wikimedia.org/wikipedia/pt/7/7b/Brentford_FC_logo.svg" }

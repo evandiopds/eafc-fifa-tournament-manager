@@ -15,7 +15,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 sm:p-6 text-white">
-      {/* 1. SE NÃO TIVER TORNEIO ATIVO -> EXIBE A TELA INICIAL */}
+      {/* 1. SEM TORNEIO ATIVO -> RENDERIZA TELA INICIAL */}
       {!torneioAtivo ? (
         <TelaInicial
           onTorneioAcessado={(respostaAcesso) => {
@@ -23,7 +23,6 @@ export default function App() {
             setTorneioAtivo(dadosTorneio);
 
             if (respostaAcesso.dados_sorteados) {
-              console.log("[App] Chaveamento existente carregado do Back-End:", respostaAcesso.dados_sorteados);
               setDadosSorteados(respostaAcesso.dados_sorteados);
             } else {
               setDadosSorteados(null);
@@ -31,7 +30,7 @@ export default function App() {
           }}
         />
       ) : (
-        /* SE ESTIVER COM TORNEIO ATIVO -> ABA SUPERIOR TÁTICA + CONTEÚDO */
+        /* 2. COM TORNEIO ATIVO -> BARRA SUPERIOR DE CONTROLE */
         <div className="w-full max-w-6xl mx-auto py-4">
           <div className="flex items-center justify-between mb-6 bg-slate-900/95 p-4 rounded-md border border-slate-800 shadow-lg backdrop-blur-md">
             <div>
@@ -52,18 +51,16 @@ export default function App() {
             </button>
           </div>
 
-          {/* 2. SE NÃO GEROU/ENCONTROU O CHAVEAMENTO -> EXIBE O FLUXO DE PARTICIPANTES */}
+          {/* 3. FLUXO DE NAVEGAÇÃO INTERNA */}
           {!dadosSorteados ? (
             <FluxoParticipantes
               torneio={torneioAtivo}
               onSorteioConcluido={(resultadoBackend) => {
-                console.log("[App] Sorteio gerado pelo Back-End:", resultadoBackend);
                 setDadosSorteados(resultadoBackend);
               }}
               onVoltar={handleTrocarTorneio}
             />
           ) : (
-            /* 3. SE EXISTIR -> MOSTRA O CHAVEAMENTO DO TORNEIO */
             <Chaveamento 
               torneio={torneioAtivo} 
               dadosSorteados={dadosSorteados} 

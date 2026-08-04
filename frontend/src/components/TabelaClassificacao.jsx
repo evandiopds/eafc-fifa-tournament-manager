@@ -4,15 +4,17 @@ import { buscarTime } from '../utils/teamSearch';
 import escudoGen from '../assets/escudo_gen.svg';
 
 function getEscudoClube(nomeClube, urlBanco) {
-  if (urlBanco) return urlBanco;
+  if (urlBanco && urlBanco !== '/escudo-padrao.png') {
+    return urlBanco;
+  }
   const timeEncontrado = buscarTime(nomeClube);
-  if (!timeEncontrado || timeEncontrado.escudo === '/escudo-padrao.png') {
+  if (!timeEncontrado || !timeEncontrado.escudo || timeEncontrado.escudo === '/escudo-padrao.png') {
     return escudoGen;
   }
   return timeEncontrado.escudo;
 }
 
-// Hierarquia estrita: Confronto Direto -> SG -> GP -> Rodada Extra / Sorteio
+// Identifica o critério matemático que definiu posições empatadas em pontos
 function obterMotivoDesempate(time, idx, lista, formato) {
   if (!time || (time.pontos === 0 && time.jogos === 0)) return null;
 
@@ -56,7 +58,7 @@ export default function TabelaClassificacao({ classificacao = [], formato = 'pon
 
   return (
     <div className="w-full max-w-5xl mx-auto bg-slate-800/90 rounded-md border border-slate-700 shadow-xl overflow-hidden mt-8">
-      {/* Cabeçalho */}
+      {/* Cabeçalho da Tabela */}
       <div className="bg-slate-900/95 px-4 sm:px-6 py-3.5 sm:py-4 border-b border-slate-700 flex items-center justify-between gap-2">
         <h3 className="text-base sm:text-lg font-extrabold text-emerald-400 uppercase tracking-wider truncate">
           {formato === 'copa' ? `Classificação - ${nomeGrupo || 'Grupo'}` : 'Classificação Geral - Pontos Corridos'}
@@ -66,7 +68,7 @@ export default function TabelaClassificacao({ classificacao = [], formato = 'pon
         </span>
       </div>
 
-      {/* Alerta Tático de Desempate */}
+      {/* Alerta Tático Superior de Desempate */}
       {houveDesempate && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
@@ -80,7 +82,7 @@ export default function TabelaClassificacao({ classificacao = [], formato = 'pon
         </motion.div>
       )}
 
-      {/* Tabela */}
+      {/* Tabela Responsiva */}
       <div className="overflow-x-auto">
         <table className="w-full text-left text-slate-300 whitespace-nowrap">
           <thead className="bg-slate-900/60 text-slate-400 text-[11px] sm:text-xs uppercase tracking-widest border-b border-slate-700/80">
@@ -108,7 +110,7 @@ export default function TabelaClassificacao({ classificacao = [], formato = 'pon
                   transition={{ duration: 0.18, delay: Math.min(idx * 0.03, 0.25) }}
                   className="hover:bg-slate-700/30 transition-colors"
                 >
-                  {/* Posição */}
+                  {/* Coluna Posição */}
                   <td className="px-3 sm:px-6 py-3 sm:py-3.5 font-bold text-slate-100">
                     <span
                       className={`w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-sm text-xs font-black ${
@@ -121,10 +123,17 @@ export default function TabelaClassificacao({ classificacao = [], formato = 'pon
                     </span>
                   </td>
                   
-                  {/* Escudo, Nome do Clube e Badge de Desempate (empilhada no mobile) */}
+                  {/* Coluna Clube + Escudo + Badge de Desempate */}
                   <td className="px-3 sm:px-6 py-3 sm:py-3.5">
                     <div className="flex items-center gap-2.5 sm:gap-3">
-                      <img src={escudo} alt={time.nome_clube} className="w-6 h-6 sm:w-7 sm:h-7 object-contain shrink-0" />
+                      <img
+                        src={escudo}
+                        alt={time.nome_clube}
+                        onError={(e) => {
+                          e.target.src = escudoGen;
+                        }}
+                        className="w-6 h-6 sm:w-7 sm:h-7 object-contain shrink-0"
+                      />
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2">
                         <span className="font-bold text-slate-100 text-xs sm:text-sm">{time.nome_clube}</span>
                         {motivoDesempate && (
@@ -139,14 +148,14 @@ export default function TabelaClassificacao({ classificacao = [], formato = 'pon
                     </div>
                   </td>
 
-                  {/* Jogador(es) */}
+                  {/* Coluna Jogador */}
                   <td className="px-3 sm:px-6 py-3 sm:py-3.5">
                     <span className="text-xs font-semibold text-slate-300">
                       {time.jogador || '-'}
                     </span>
                   </td>
                   
-                  {/* Estatísticas */}
+                  {/* Colunas Numéricas */}
                   <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-center font-black text-emerald-400 text-sm sm:text-base">{time.pontos || 0}</td>
                   <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-center font-bold text-xs sm:text-sm text-slate-200">{time.saldo_gols || 0}</td>
                   <td className="px-2 sm:px-4 py-3 sm:py-3.5 text-center font-bold text-xs sm:text-sm text-slate-200">{time.gols_pro || 0}</td>

@@ -2,6 +2,7 @@ import random
 import math
 
 
+# Realiza o sorteio de duplas de forma aleatória pura ou balanceada por potes (Ouro, Prata e Bronze)
 def sortear_duplas(jogadores: list, balanceado: bool = False):
     lista_jogadores = jogadores.copy()
     duplas_formadas = []
@@ -56,6 +57,7 @@ def sortear_duplas(jogadores: list, balanceado: bool = False):
     return duplas_formadas
 
 
+# Atribui aleatoriamente os times disponíveis aos participantes ou duplas sorteados
 def sortear_times(participantes: list, times_disponiveis: list) -> list:
     times_embaralhados = times_disponiveis.copy()
     random.shuffle(times_embaralhados)
@@ -71,7 +73,7 @@ def sortear_times(participantes: list, times_disponiveis: list) -> list:
     return times_atribuidos
 
 
-# Gera confrontos de todos contra todos para uma lista de times
+# Gera a tabela de jogos no sistema Round-Robin (todos contra todos) com suporte a folgas em números ímpares
 def _gerar_tabela_pontos_corridos(times_tabela: list, ida_e_volta: bool = True) -> list:
     lista = times_tabela.copy()
     if len(lista) % 2 != 0:
@@ -109,7 +111,8 @@ def _gerar_tabela_pontos_corridos(times_tabela: list, ida_e_volta: bool = True) 
             
     return confrontos_totais
 
-# Gera uma estrutura de chaveamento eliminatório (Mata-Mata) com Final e Terceiro Lugar
+
+# Estrutura a chave eliminatória (Mata-Mata) com rodadas preliminares de Play-In, Final e Terceiro Lugar
 def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
     base = 1
     while base * 2 <= total:
@@ -209,6 +212,8 @@ def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
 
     return rodadas_arvore, todas_partidas
 
+
+# Ponto de entrada que direciona e monta a estrutura de jogos para o formato escolhido
 def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida_e_volta: bool = True) -> dict:
     lista = participantes_com_times.copy()
     random.shuffle(lista)
@@ -260,7 +265,6 @@ def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida
             grupos_confrontos[nome_grupo] = jogos_grupo
             todas_partidas_copa.extend(jogos_grupo)
             
-        # Determina o tamanho da chave eliminatória (4, 8 ou 16 times) e gera a árvore prévia
         tamanho_mata_mata = 4 if total <= 8 else (8 if total <= 16 else 16)
         times_vazios = ["Aguardando"] * tamanho_mata_mata
         arvore_mata_mata, partidas_mata_mata = _gerar_arvore_mata_mata(times_vazios, tamanho_mata_mata)
