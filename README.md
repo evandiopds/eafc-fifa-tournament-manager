@@ -8,11 +8,7 @@ Ao jogar com os amigos pensei em criar esse projeto: um gerenciador de torneios 
 
 *   **Formatos de Competição:** Suporte completo para criação de torneios nos formatos **Mata-Mata**, **Modo Copa** (Grupos + Eliminatórias) e **Pontos Corridos**.
 *   **Algoritmo de Matchmaking & Potes:** Sorteio e balanceamento inteligente de duplas utilizando potes por nível de habilidade (*Ouro, Prata e Bronze.* Ainda em beta) ou modo de disputa Solo (1v1).
-*   **Hierarquia Rígida de Desempate:** Em torneios de Pontos Corridos, o sistema aplica ordem de prioridade para posições empatadas em pontos:
-    1.  **Confronto Direto:** Compara os pontos somados nos duelos diretos entre as equipes empatadas.
-    2.  **SG (Saldo de Gols):** Diferença geral entre gols marcados e sofridos.
-    3.  **GP (Gols Pró):** Total de gols marcados no campeonato.
-    4.  **Rodada de Desempate (D) ou Sorteio:** Acionada somente em caso de igualdade absoluta em todos os critérios anteriores.
+*   **Hierarquia Rígida de Desempate:** Em torneios de Pontos Corridos, o sistema aplica ordem de prioridade para posições empatadas em pontos.
 *   **Trava de Segurança da Rodada "D":** A rodada extra pelo título só é habilitada automaticamente após **100% das partidas normais** da tabela estarem finalizadas e com placar preenchido.
 *   **Integridade de Cadastros:** Proteção contra nomes/nicks duplicados no cadastro de participantes, permitindo repetição de clubes sem conflitar jogadores na tabela.
 *   **Interface Tática & Responsiva:** UI construída com alertas em tempo real para critérios de desempate, transições fluidas e layout compatível com smartphones, tablets e desktops.
@@ -41,5 +37,19 @@ Ao jogar com os amigos pensei em criar esse projeto: um gerenciador de torneios 
 - [x] **Sprint 6 (Polimento, Regras de Desempate e UI/UX):** Elevar a qualidade da interface gráfica com animações, otimizar a responsividade para dispositivos móveis/tablets, travar nicks duplicados e implementar cálculo de confronto direto e Rodada "D".
 - [ ] **Sprint 7 (Deploy em Nuvem, Polimento Final):** Retirar a aplicação do ambiente local de desenvolvimento (`localhost`) e disponibilizá-la publicamente na internet com alta performance e persistência de dados contínua, além de realizar testes ponta a ponta gerais.
 
+---
+
+## Futuro & Próximos Passos (Roadmap)
+
+Para as próximas versões, tenho como foco principal:
+
+1. **Biblioteca Global de Escudos (Assets Extension):**
+   * Desenvolvimento de um pacote/módulo dedicado contendo os escudos oficiais dos clubes das primeiras divisões das principais ligas do mundo.
+   * Integração direta com o motor de busca do sistema para substituir escudos genéricos e elevar a imersão visual dos torneios.
+
+2. **Estabilização Oficial do Modo Duplas (2v2 BETA):**
+   * Refinamento completo das traves de validação e balanceamento por potes de habilidade (*Ouro, Prata e Bronze*).
+   * Conclusão de todos os testes de ponta a ponta para transicionar o formato 2v2 do estágio experimental para produção estável.
+   
 ---
 *Desenvolvido por Evandio de Souza Filho com auxílio de Inteligência Artificial.*
