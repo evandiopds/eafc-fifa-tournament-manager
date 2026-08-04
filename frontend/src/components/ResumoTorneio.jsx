@@ -13,6 +13,22 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
+function getNomeExibicao(nomeTime) {
+  if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') {
+    return nomeTime || 'Aguardando';
+  }
+
+  const timeEncontrado = buscarTime(nomeTime);
+  if (timeEncontrado && timeEncontrado.nomeOficial) {
+    return timeEncontrado.nomeOficial;
+  }
+  if (timeEncontrado && timeEncontrado.nome) {
+    return timeEncontrado.nome;
+  }
+
+  return nomeTime;
+}
+
 // Extrai de forma segura o nome do jogador ou dupla de um participante
 function extrairNomeParticipante(participante) {
   if (!participante) return null;
@@ -35,6 +51,9 @@ function CardJogoLeitura({ jogo, tagTitulo, tagCor = 'bg-emerald-500/20 text-eme
   const jogCasa = extrairNomeParticipante(jogo.casa);
   const jogFora = extrairNomeParticipante(jogo.fora);
 
+  const nomeExibicaoCasa = getNomeExibicao(nomeCasa);
+  const nomeExibicaoFora = getNomeExibicao(nomeFora);
+
   return (
     <div className="bg-slate-950/80 border border-slate-800 rounded-md p-4 flex flex-col justify-between h-full">
       <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5 mb-3">
@@ -48,9 +67,9 @@ function CardJogoLeitura({ jogo, tagTitulo, tagCor = 'bg-emerald-500/20 text-eme
         {/* Time da Casa */}
         <div className="flex items-center justify-between gap-2 bg-slate-900/60 px-3 py-2 rounded-sm border border-slate-800/60">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <img src={getEscudo(nomeCasa)} alt={nomeCasa} className="w-6 h-6 object-contain shrink-0" />
+            <img src={getEscudo(nomeCasa)} alt={nomeExibicaoCasa} className="w-6 h-6 object-contain shrink-0" />
             <div className="truncate">
-              <p className="text-sm font-bold text-white truncate">{nomeCasa}</p>
+              <p className="text-sm font-bold text-white truncate">{nomeExibicaoCasa}</p>
               {jogCasa && <p className="text-[10px] text-emerald-400 font-semibold truncate">{jogCasa}</p>}
             </div>
           </div>
@@ -62,9 +81,9 @@ function CardJogoLeitura({ jogo, tagTitulo, tagCor = 'bg-emerald-500/20 text-eme
         {/* Time Visitante */}
         <div className="flex items-center justify-between gap-2 bg-slate-900/60 px-3 py-2 rounded-sm border border-slate-800/60">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <img src={getEscudo(nomeFora)} alt={nomeFora} className="w-6 h-6 object-contain shrink-0" />
+            <img src={getEscudo(nomeFora)} alt={nomeExibicaoFora} className="w-6 h-6 object-contain shrink-0" />
             <div className="truncate">
-              <p className="text-sm font-bold text-white truncate">{nomeFora}</p>
+              <p className="text-sm font-bold text-white truncate">{nomeExibicaoFora}</p>
               {jogFora && <p className="text-[10px] text-emerald-400 font-semibold truncate">{jogFora}</p>}
             </div>
           </div>
@@ -450,10 +469,10 @@ export default function ResumoTorneio({ dadosTorneio, torneio }) {
             Prata
           </div>
           <Award className="w-8 h-8 text-slate-300 mb-2" />
-          <img src={getEscudo(podio.vice.time)} alt={podio.vice.time || 'Vice'} className="w-14 h-14 object-contain my-2" />
+          <img src={getEscudo(podio.vice.time)} alt={getNomeExibicao(podio.vice.time) || 'Vice'} className="w-14 h-14 object-contain my-2" />
           <span className="text-xs font-black uppercase tracking-widest text-slate-400">2º Lugar</span>
           <h4 className="text-base font-extrabold text-slate-100 truncate w-full mt-0.5">
-            {podio.vice.time || 'A definir'}
+            {getNomeExibicao(podio.vice.time) || 'A definir'}
           </h4>
           {podio.vice.jogador && (
             <p className="text-xs font-bold text-emerald-400 truncate w-full mt-1">
@@ -473,10 +492,10 @@ export default function ResumoTorneio({ dadosTorneio, torneio }) {
             Campeão
           </div>
           <Trophy className="w-10 h-10 text-amber-400 mb-2" />
-          <img src={getEscudo(podio.campeao.time)} alt={podio.campeao.time || 'Campeão'} className="w-16 h-16 object-contain my-2" />
+          <img src={getEscudo(podio.campeao.time)} alt={getNomeExibicao(podio.campeao.time) || 'Campeão'} className="w-16 h-16 object-contain my-2" />
           <span className="text-xs font-black uppercase tracking-widest text-amber-400">1º Lugar</span>
           <h4 className="text-lg font-extrabold text-white truncate w-full mt-0.5">
-            {podio.campeao.time || 'A definir'}
+            {getNomeExibicao(podio.campeao.time) || 'A definir'}
           </h4>
           {podio.campeao.jogador && (
             <p className="text-sm font-black text-emerald-400 truncate w-full mt-1">
@@ -496,10 +515,10 @@ export default function ResumoTorneio({ dadosTorneio, torneio }) {
             Bronze
           </div>
           <Award className="w-8 h-8 text-amber-600 mb-2" />
-          <img src={getEscudo(podio.terceiro.time)} alt={podio.terceiro.time || '3º'} className="w-14 h-14 object-contain my-2" />
+          <img src={getEscudo(podio.terceiro.time)} alt={getNomeExibicao(podio.terceiro.time) || '3º'} className="w-14 h-14 object-contain my-2" />
           <span className="text-xs font-black uppercase tracking-widest text-amber-500">3º Lugar</span>
           <h4 className="text-base font-extrabold text-slate-200 truncate w-full mt-0.5">
-            {podio.terceiro.time || 'A definir'}
+            {getNomeExibicao(podio.terceiro.time) || 'A definir'}
           </h4>
           {podio.terceiro.jogador && (
             <p className="text-xs font-bold text-emerald-400 truncate w-full mt-1">
@@ -559,12 +578,12 @@ export default function ResumoTorneio({ dadosTorneio, torneio }) {
                 <ShieldAlert className="w-6 h-6 text-emerald-400 shrink-0" />
                 <img
                   src={getEscudo(destaques.timeDefesaFerro.time)}
-                  alt={destaques.timeDefesaFerro.time}
+                  alt={getNomeExibicao(destaques.timeDefesaFerro.time)}
                   className="w-8 h-8 object-contain shrink-0"
                 />
                 <div className="truncate">
                   <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-sm font-bold text-white truncate">{destaques.timeDefesaFerro.time}</span>
+                    <span className="text-sm font-bold text-white truncate">{getNomeExibicao(destaques.timeDefesaFerro.time)}</span>
                     {destaques.timeDefesaFerro.jogador && (
                       <span className="text-xs font-bold text-emerald-400 shrink-0">
                         ({destaques.timeDefesaFerro.jogador})
@@ -590,12 +609,12 @@ export default function ResumoTorneio({ dadosTorneio, torneio }) {
                 <Scale className="w-6 h-6 text-emerald-400 shrink-0" />
                 <img
                   src={getEscudo(destaques.timeReiEmpate.time)}
-                  alt={destaques.timeReiEmpate.time}
+                  alt={getNomeExibicao(destaques.timeReiEmpate.time)}
                   className="w-8 h-8 object-contain shrink-0"
                 />
                 <div className="truncate">
                   <div className="flex items-center gap-1.5 truncate">
-                    <span className="text-sm font-bold text-white truncate">{destaques.timeReiEmpate.time}</span>
+                    <span className="text-sm font-bold text-white truncate">{getNomeExibicao(destaques.timeReiEmpate.time)}</span>
                     {destaques.timeReiEmpate.jogador && (
                       <span className="text-xs font-bold text-emerald-400 shrink-0">
                         ({destaques.timeReiEmpate.jogador})
@@ -637,9 +656,9 @@ export default function ResumoTorneio({ dadosTorneio, torneio }) {
               <div key={idx} className="flex items-center justify-between bg-slate-900/80 border border-slate-800 px-3.5 py-2.5 rounded-sm">
                 <div className="flex items-center gap-2.5 overflow-hidden">
                   <span className="text-xs font-black text-slate-500 w-4">{idx + 1}º</span>
-                  <img src={getEscudo(item.time)} alt={item.time} className="w-6 h-6 object-contain shrink-0" />
+                  <img src={getEscudo(item.time)} alt={getNomeExibicao(item.time)} className="w-6 h-6 object-contain shrink-0" />
                   <div className="truncate">
-                    <span className="text-sm font-bold text-slate-200">{item.time}</span>
+                    <span className="text-sm font-bold text-slate-200">{getNomeExibicao(item.time)}</span>
                     {item.jogador && (
                       <span className="text-xs font-bold text-emerald-400 ml-1.5">
                         ({item.jogador})
@@ -672,9 +691,9 @@ export default function ResumoTorneio({ dadosTorneio, torneio }) {
               <div key={idx} className="flex items-center justify-between bg-slate-900/80 border border-slate-800 px-3.5 py-2.5 rounded-sm">
                 <div className="flex items-center gap-2.5 overflow-hidden">
                   <span className="text-xs font-black text-slate-500 w-4">{idx + 1}º</span>
-                  <img src={getEscudo(item.time)} alt={item.time} className="w-6 h-6 object-contain shrink-0" />
+                  <img src={getEscudo(item.time)} alt={getNomeExibicao(item.time)} className="w-6 h-6 object-contain shrink-0" />
                   <div className="truncate">
-                    <span className="text-sm font-bold text-slate-200">{item.time}</span>
+                    <span className="text-sm font-bold text-slate-200">{getNomeExibicao(item.time)}</span>
                     {item.jogador && (
                       <span className="text-xs font-bold text-emerald-400 ml-1.5">
                         ({item.jogador})

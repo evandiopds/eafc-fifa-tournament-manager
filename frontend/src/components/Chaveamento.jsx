@@ -26,6 +26,22 @@ function getEscudo(nomeTime) {
   return timeEncontrado.escudo;
 }
 
+function getNomeExibicao(nomeTime) {
+  if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') {
+    return nomeTime || 'Aguardando';
+  }
+
+  const timeEncontrado = buscarTime(nomeTime);
+  if (timeEncontrado && timeEncontrado.nomeOficial) {
+    return timeEncontrado.nomeOficial;
+  }
+  if (timeEncontrado && timeEncontrado.nome) {
+    return timeEncontrado.nome;
+  }
+
+  return nomeTime;
+}
+
 // Extrai clube, jogador(es) e id do participante
 function getDadosParticipante(alvo) {
   if (!alvo) return { clube: 'Aguardando', jogador: null, id: null };
@@ -126,6 +142,9 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
 
   const { clube: nomeCasa, jogador: partCasa } = getDadosParticipante(jogo.casa || jogo.time);
   const { clube: nomeFora, jogador: partFora } = getDadosParticipante(jogo.fora || jogo.visitante);
+
+  const nomeExibicaoCasa = getNomeExibicao(nomeCasa);
+  const nomeExibicaoFora = getNomeExibicao(nomeFora);
 
   const isAguardando = nomeCasa === 'Aguardando' || nomeFora === 'Aguardando';
   const bloqueado = isAguardando || isBloqueado;
@@ -275,7 +294,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         <div className="flex items-center gap-2.5 overflow-hidden">
           <img
             src={getEscudo(nomeCasa)}
-            alt={nomeCasa}
+            alt={nomeExibicaoCasa}
             onError={(e) => {
               e.target.src = (!nomeCasa || nomeCasa === 'Aguardando' || nomeCasa === 'A definir') 
                 ? (escudoOff || escudoGen) 
@@ -285,7 +304,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           />
           <div className="truncate">
             <p className={`text-sm font-bold truncate ${nomeCasa === 'Aguardando' ? 'text-slate-500 italic' : 'text-white'}`}>
-              {nomeCasa}
+              {nomeExibicaoCasa}
             </p>
             {partCasa && <p className="text-[10px] text-emerald-400 font-semibold truncate">{partCasa}</p>}
           </div>
@@ -311,7 +330,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
         <div className="flex items-center gap-2.5 overflow-hidden">
           <img
             src={getEscudo(nomeFora)}
-            alt={nomeFora}
+            alt={nomeExibicaoFora}
             onError={(e) => {
               e.target.src = (!nomeFora || nomeFora === 'Aguardando' || nomeFora === 'A definir') 
                 ? (escudoOff || escudoGen) 
@@ -321,7 +340,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           />
           <div className="truncate">
             <p className={`text-sm font-bold truncate ${nomeFora === 'Aguardando' ? 'text-slate-500 italic' : 'text-white'}`}>
-              {nomeFora}
+              {nomeExibicaoFora}
             </p>
             {partFora && <p className="text-[10px] text-emerald-400 font-semibold truncate">{partFora}</p>}
           </div>

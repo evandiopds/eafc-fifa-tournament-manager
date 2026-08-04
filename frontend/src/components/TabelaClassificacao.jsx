@@ -14,6 +14,22 @@ function getEscudoClube(nomeClube, urlBanco) {
   return timeEncontrado.escudo;
 }
 
+function getNomeExibicao(nomeTime) {
+  if (!nomeTime || nomeTime === 'Aguardando' || nomeTime === 'A definir') {
+    return nomeTime || 'Aguardando';
+  }
+
+  const timeEncontrado = buscarTime(nomeTime);
+  if (timeEncontrado && timeEncontrado.nomeOficial) {
+    return timeEncontrado.nomeOficial;
+  }
+  if (timeEncontrado && timeEncontrado.nome) {
+    return timeEncontrado.nome;
+  }
+
+  return nomeTime;
+}
+
 // Identifica o critério matemático que definiu posições empatadas em pontos
 function obterMotivoDesempate(time, idx, lista, formato) {
   if (!time || (time.pontos === 0 && time.jogos === 0)) return null;
@@ -101,6 +117,7 @@ export default function TabelaClassificacao({ classificacao = [], formato = 'pon
               const posicao = time.posicao || idx + 1;
               const escudo = getEscudoClube(time.nome_clube, time.escudo_url);
               const motivoDesempate = obterMotivoDesempate(time, idx, classificacao, formato);
+              const nomeExibicao = getNomeExibicao(time.nome_clube);
 
               return (
                 <motion.tr
@@ -128,14 +145,14 @@ export default function TabelaClassificacao({ classificacao = [], formato = 'pon
                     <div className="flex items-center gap-2.5 sm:gap-3">
                       <img
                         src={escudo}
-                        alt={time.nome_clube}
+                        alt={nomeExibicao}
                         onError={(e) => {
                           e.target.src = escudoGen;
                         }}
                         className="w-6 h-6 sm:w-7 sm:h-7 object-contain shrink-0"
                       />
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2">
-                        <span className="font-bold text-slate-100 text-xs sm:text-sm">{time.nome_clube}</span>
+                        <span className="font-bold text-slate-100 text-xs sm:text-sm">{nomeExibicao}</span>
                         {motivoDesempate && (
                           <span
                             className="inline-flex items-center gap-1 bg-amber-500/15 border border-amber-500/40 text-amber-300 px-1.5 py-0.5 rounded-sm text-[9px] sm:text-[10px] font-black uppercase tracking-wider"
