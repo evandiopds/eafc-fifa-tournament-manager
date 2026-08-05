@@ -1,4 +1,4 @@
-# FUT MANAGER - Gerenciador de Torneios de EA FC / FIFA
+# E-FUT MANAGER - Gerenciador de Torneios de Futebol Digital
 
 Sistema web focado no gerenciamento ágil de torneios de futebol digital. Projetado para eliminar a necessidade de cadastro ou criação de contas, o sistema permite que torneios sejam gerados e acessados instantaneamente por meio de um ID único e senha, fornecendo controle de tabelas, chaveamentos e estatísticas em tempo real.
 
@@ -13,18 +13,20 @@ Sistema web focado no gerenciamento ágil de torneios de futebol digital. Projet
 
 ## Funcionalidades e Regras de Negócio
 
-* **Formatos de Competição:** Suporte completo para criação de torneios nos formatos **Mata-Mata**, **Modo Copa** (Fase de Grupos + Eliminatórias) e **Pontos Corridos**.
-* **Algoritmo de Matchmaking e Potes:** Sorteio e balanceamento inteligente de duplas utilizando potes por nível de habilidade (*Ouro, Prata e Bronze* - em fase Beta) ou modo de disputa Solo (1v1).
-* **Hierarquia Rígida de Desempate:** Em torneios de Pontos Corridos, o sistema aplica ordem automática de prioridade para posições empatadas em pontos (Vitórias, Saldo de Gols, Gols Pró, Confronto Direto).
-* **Trava de Segurança da Rodada D:** A rodada extra pelo título é habilitada automaticamente apenas após 100% das partidas normais da tabela estarem finalizadas com placar preenchido.
-* **Integridade de Cadastros:** Validação contra nomes/nicks duplicados no cadastro de participantes, permitindo a repetição de clubes sem gerar conflitos de jogadores na tabela.
-* **Interface Responsiva:** Interface otimizada para dispositivos móveis, tablets e desktops com atualizações visuais em tempo real.
+* **Formatos de Competição:** Suporte completo para criação de torneios nos formatos **Mata-Mata** direto, **Modo Copa** (Fase de Grupos + Playoffs) e **Pontos Corridos**.
+* **Algoritmo de Matchmaking e Potes (Beta):** Sorteio de duplas (2v2) utilizando potes por nível de habilidade (*Ouro, Prata e Bronze*). **Atenção:** Funcionalidade em fase de testes (Beta), podendo apresentar falhas no balanceamento automático. O modo Solo (1v1) está 100% estável.
+* **Hierarquia Rígida de Desempate:** Em torneios de Pontos Corridos, o sistema aplica uma ordem automática de prioridade para separar posições empatadas: Pontos > Confronto Direto > Saldo de Gols > Gols Marcados.
+* **Empate Absoluto e Rodada D:** Quando 100% das partidas normais dos Pontos Corridos são finalizadas e ocorre um "empate absoluto" (duas ou mais equipes igualadas em todos os critérios de desempate), o sistema gera automaticamente uma Rodada Extra ("Rodada D"). Os organizadores podem optar por disputar essas partidas no jogo ou deixar o sistema decidir o campeão por sorteio. *No Modo Copa, empates absolutos são resolvidos diretamente por sorteio.*
+* **Ciclo de Vida e Expiração Automática:** Limpeza contínua em segundo plano no banco de dados. Torneios inativos ou finalizados são removidos após 7 dias sem acesso, e qualquer torneio é apagado automaticamente após 14 dias.
+* **Integridade de Cadastros:** Validação contra nicks duplicados no cadastro de participantes, permitindo que jogadores escolham os mesmos clubes sem gerar conflitos nas tabelas.
+* **Acervo de Escudos Integrado:** Biblioteca nativa com mais de 200 logos e escudos oficiais, incluindo clubes globais, seleções e times lendários.
+* **Interface Responsiva:** Layout otimizado para dispositivos móveis, tablets e desktops, com atualizações de placar e navegação por abas em tempo real.
 
 ---
 
 ## Divergências entre o Repositório Vitrine e a Versão em Deploy
 
-Este repositório contém o código-fonte base estruturado para desenvolvimento e demonstração. A versão atualmente em produção contida no deploy possui otimizações de infraestrutura, comunicação, segurança e ativos visuais:
+Este repositório contém o código-fonte base estruturado para desenvolvimento e demonstração. A versão atualmente em produção no deploy possui otimizações de infraestrutura, comunicação, segurança e ativos visuais:
 
 | Recurso / Camada | Repositório Vitrine (Desenvolvimento) | Versão em Deploy (Produção) |
 | :--- | :--- | :--- |
@@ -33,7 +35,7 @@ Este repositório contém o código-fonte base estruturado para desenvolvimento 
 | **Comunicação Front-Back** | Endpoints direcionados a `http://localhost:8000` | **Integração via HTTPS** utilizando variável de ambiente (`VITE_API_URL`) para apontar dinamicamente ao servidor do Render |
 | **Banco de Dados** | SQLite (Arquivo local `.db`) | **PostgreSQL** (Instância em nuvem com persistência contínua) |
 | **Segurança e Rate Limiting** | Sem restrição de requisições | **SlowAPI / Rate Limiting** habilitado para proteção contra abuso de endpoints |
-| **Biblioteca de Escudos** | Escudos padrão / demonstrativos | **160+ Escudos Internos** de times e seleções globais pré-carregados |
+| **Biblioteca de Escudos** | Escudos padrão / demonstrativos | **200+ Escudos Internos** de times, seleções e lendas globais pré-carregados |
 | **Driver de Banco (ORM)** | SQLAlchemy (Driver SQLite) | SQLAlchemy + **psycopg2-binary** adaptável via variável de ambiente `DATABASE_URL` |
 
 ---
@@ -49,15 +51,14 @@ Este repositório contém o código-fonte base estruturado para desenvolvimento 
 
 ---
 
-## Futuro e Próximos Passos
+## Sugestões Pessoais para Melhorias
 
 1. **Repositório/Biblioteca Privada de Assets SVG (CDN de Escudos):**
-   * Na versão atual em deploy, a aplicação utiliza aproximadamente 160 arquivos SVG internos de escudos de clubes e seleções.
-   * O próximo passo arquitetural consiste no desenvolvimento de um repositório dedicado/privado para hospedagem e entrega de imagens vetoriais (SVG CDN). Isso reduzirá o tamanho do bundle do front-end e permitirá a expansão contínua da biblioteca de ativos visuais sem necessidade de novos deploys da aplicação principal.
+   * Na versão atual em deploy, a aplicação carrega mais de 200 arquivos SVG internos.
+   * O próximo passo arquitetural é criar um repositório dedicado/privado para hospedar e entregar essas imagens vetoriais (SVG CDN). Isso reduzirá o peso da aplicação no front-end e permitirá adicionar novos escudos sem precisar fazer um novo deploy do sistema principal.
 
-2. **Estabilização Oficial do Modo Duplas (2v2 BETA):**
-   * Refinamento completo das travas de validação e balanceamento por potes de habilidade (*Ouro, Prata e Bronze*).
-   * Conclusão da suíte de testes ponta a ponta para homologação definitiva do formato 2v2 em produção.
+2. **Homologação do Modo 2v2:**
+   * Concluir a bateria de testes operacionais no sistema de sorteio de duplas e potes de habilidade para remover o selo Beta.
 
 ---
 
