@@ -176,7 +176,8 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
         initial={{ opacity: 0, scale: 0.98, y: 10 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.25, ease: 'easeOut' }}
-        className="relative z-10 w-full max-w-4xl mx-auto max-h-[92vh] overflow-y-auto bg-slate-900/95 border border-slate-700/80 rounded-md p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-md"
+        style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 #0f172a' }}
+        className="relative z-10 w-full max-w-4xl mx-auto max-h-[92vh] overflow-y-auto bg-slate-900/95 border border-slate-700/80 rounded-md p-4 sm:p-6 md:p-8 shadow-2xl backdrop-blur-md [scrollbar-color:_#10b981_#0f172a] [scrollbar-width:_thin]"
       >
         {/* Cabeçalho */}
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between border-b border-slate-800 pb-4 sm:pb-5 mb-4 sm:mb-5 gap-4">
@@ -379,7 +380,10 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                   </button>
                 </form>
 
-                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                <div
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 #0f172a' }}
+                  className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 [scrollbar-color:_#10b981_#0f172a] [scrollbar-width:_thin]"
+                >
                   <AnimatePresence>
                     {jogadores.map((j, idx) => (
                       <motion.span
@@ -430,7 +434,10 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                   </button>
                 </form>
 
-                <div className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto">
+                <div
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 #0f172a' }}
+                  className="flex flex-wrap gap-1.5 max-h-40 overflow-y-auto pr-1 [scrollbar-color:_#10b981_#0f172a] [scrollbar-width:_thin]"
+                >
                   <AnimatePresence>
                     {times.map((t, idx) => (
                       <motion.span
@@ -491,7 +498,10 @@ export default function FluxoParticipantes({ torneio, onSorteioConcluido }) {
                 </button>
               </form>
 
-              <div className="space-y-2 max-h-40 overflow-y-auto">
+              <div
+                style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 #0f172a' }}
+                className="space-y-2 max-h-40 overflow-y-auto pr-1 [scrollbar-color:_#10b981_#0f172a] [scrollbar-width:_thin]"
+              >
                 {paresManuais.length === 0 ? (
                   <p className="text-xs text-slate-500 text-center py-4">
                     Nenhum par cadastrado ainda. Adicione acima!

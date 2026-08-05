@@ -109,6 +109,10 @@ def _gerar_tabela_pontos_corridos(times_tabela: list, ida_e_volta: bool = True) 
                 "fora": jogo["casa"]
             })
             
+    for idx, jogo in enumerate(confrontos_totais):
+        jogo["index_partida"] = idx
+        jogo["id"] = idx
+            
     return confrontos_totais
 
 
@@ -133,10 +137,13 @@ def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
         
         rodada_playin = []
         for i in range(0, times_playin, 2):
+            idx_jogo = i // 2
             rodada_playin.append({
                 "fase": "Play-In",
                 "casa": lista_times[i],
-                "fora": lista_times[i+1]
+                "fora": lista_times[i+1],
+                "index_partida": idx_jogo,
+                "id": idx_jogo
             })
         rodadas_arvore["Play-In"] = rodada_playin
         
@@ -150,10 +157,13 @@ def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
             
         confrontos_fase_base = []
         for i in range(0, len(rodada_base), 2):
+            idx_jogo = i // 2
             confrontos_fase_base.append({
                 "fase": fase_base_nome,
                 "casa": rodada_base[i],
-                "fora": rodada_base[i+1] if i+1 < len(rodada_base) else "Aguardando"
+                "fora": rodada_base[i+1] if i+1 < len(rodada_base) else "Aguardando",
+                "index_partida": idx_jogo,
+                "id": idx_jogo
             })
         rodadas_arvore[fase_base_nome] = confrontos_fase_base
         
@@ -161,14 +171,31 @@ def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
         while tamanho_futuro >= 1:
             nome_futuro = fases_nomes.get(tamanho_futuro, "Final")
             if tamanho_futuro == 1:
-                jogos_finais = [{"fase": "Final", "casa": "Aguardando", "fora": "Aguardando"}]
+                rodadas_arvore["Final"] = [{
+                    "fase": "Final",
+                    "casa": "Aguardando",
+                    "fora": "Aguardando",
+                    "index_partida": 0,
+                    "id": 0
+                }]
                 if base >= 4:
-                    jogos_finais.append({"fase": "Terceiro Lugar", "casa": "Aguardando", "fora": "Aguardando"})
-                rodadas_arvore["Final"] = jogos_finais
+                    rodadas_arvore["Terceiro Lugar"] = [{
+                        "fase": "Terceiro Lugar",
+                        "casa": "Aguardando",
+                        "fora": "Aguardando",
+                        "index_partida": 0,
+                        "id": 0
+                    }]
             else:
                 rodadas_arvore[nome_futuro] = [
-                    {"fase": nome_futuro, "casa": "Aguardando", "fora": "Aguardando"}
-                    for _ in range(tamanho_futuro)
+                    {
+                        "fase": nome_futuro,
+                        "casa": "Aguardando",
+                        "fora": "Aguardando",
+                        "index_partida": idx,
+                        "id": idx
+                    }
+                    for idx in range(tamanho_futuro)
                 ]
             tamanho_futuro //= 2
             
@@ -183,25 +210,40 @@ def _gerar_arvore_mata_mata(lista_times: list, total: int) -> tuple:
             if tamanho_atual == 1:
                 casa_final = lista_times[idx_lista] if idx_lista < total else "Aguardando"
                 fora_final = lista_times[idx_lista+1] if idx_lista+1 < total else "Aguardando"
-                jogos_fase.append({"fase": "Final", "casa": casa_final, "fora": fora_final})
                 
+                rodadas_arvore["Final"] = [{
+                    "fase": "Final",
+                    "casa": casa_final,
+                    "fora": fora_final,
+                    "index_partida": 0,
+                    "id": 0
+                }]
                 if base >= 4:
-                    jogos_fase.append({"fase": "Terceiro Lugar", "casa": "Aguardando", "fora": "Aguardando"})
-                rodadas_arvore["Final"] = jogos_fase
+                    rodadas_arvore["Terceiro Lugar"] = [{
+                        "fase": "Terceiro Lugar",
+                        "casa": "Aguardando",
+                        "fora": "Aguardando",
+                        "index_partida": 0,
+                        "id": 0
+                    }]
             else:
-                for _ in range(tamanho_atual):
+                for idx in range(tamanho_atual):
                     if idx_lista < total:
                         jogos_fase.append({
                             "fase": nome_fase,
                             "casa": lista_times[idx_lista],
-                            "fora": lista_times[idx_lista+1]
+                            "fora": lista_times[idx_lista+1],
+                            "index_partida": idx,
+                            "id": idx
                         })
                         idx_lista += 2
                     else:
                         jogos_fase.append({
                             "fase": nome_fase,
                             "casa": "Aguardando",
-                            "fora": "Aguardando"
+                            "fora": "Aguardando",
+                            "index_partida": idx,
+                            "id": idx
                         })
                 rodadas_arvore[nome_fase] = jogos_fase
             tamanho_atual //= 2
@@ -259,8 +301,10 @@ def gerar_chaveamento_aleatorio(participantes_com_times: list, formato: str, ida
         
         for nome_grupo, membros in grupos_membros.items():
             jogos_grupo = _gerar_tabela_pontos_corridos(membros, ida_e_volta=False)
-            for jogo in jogos_grupo:
+            for idx, jogo in enumerate(jogos_grupo):
                 jogo["fase"] = nome_grupo
+                jogo["index_partida"] = idx
+                jogo["id"] = idx
                 
             grupos_confrontos[nome_grupo] = jogos_grupo
             todas_partidas_copa.extend(jogos_grupo)

@@ -130,7 +130,7 @@ function ModalConfirmacao({ isOpen, onClose, onConfirm, titulo, mensagem, textoB
 }
 
 // Card individual de partida com edição de placar, W.O. e pênaltis
-function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado, isEliminatorio = false }) {
+function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado, isEliminatorio = false, isCompacto = false }) {
   const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
   const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
   const [penCasa, setPenCasa] = useState(jogo.penaltis_casa ?? '');
@@ -171,7 +171,24 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     penVisitante !== '' &&
     penVisitante != null;
 
-  // Estiliza equipes vencedoras em jogos de Final ou 3º Lugar finalizados
+  const isFinal = jogo.fase === 'Final';
+  const isTerceiro = jogo.fase === 'Terceiro Lugar';
+
+  // Rótulo interno com a nomenclatura e # com opacidade menor ("SEMI-FINAL #1", "OITAVAS #4")
+  const getRotuloInterno = () => {
+    if (!ehMataMata || isFinal || isTerceiro) return null;
+    let faseLimpa = (jogo.fase || rodadaOuFase || '')
+      .replace(/de Final/i, '')
+      .replace(/16avos/i, 'PLAYOFFS')
+      .replace(/Semifinal/i, 'SEMI-FINAL')
+      .trim()
+      .toUpperCase();
+    return {
+      texto: faseLimpa,
+      numero: `#${idx + 1}`,
+    };
+  };
+
   const getPodioStyles = (isCasa) => {
     if (!jogo.status || jogo.status !== 'finalizada') return '';
 
@@ -185,14 +202,14 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
       vitoriaFora = Number(penVisitante) > Number(penCasa);
     }
 
-    if (jogo.fase === 'Final') {
+    if (isFinal) {
       if ((isCasa && vitoriaCasa) || (!isCasa && vitoriaFora)) {
         return 'bg-amber-500/15 border-amber-500/50 text-amber-200';
       }
       return 'bg-slate-300/10 border-slate-400/40 text-slate-300';
     }
 
-    if (jogo.fase === 'Terceiro Lugar') {
+    if (isTerceiro) {
       if ((isCasa && vitoriaCasa) || (!isCasa && vitoriaFora)) {
         return 'bg-amber-700/20 border-amber-700/50 text-amber-400';
       }
@@ -201,7 +218,6 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     return '';
   };
 
-  // Envia placar ao backend
   const salvarNoBackend = async (casaGols, foraGols, casaPen = null, foraPen = null) => {
     setCarregando(true);
     setStatusMsg(null);
@@ -276,15 +292,33 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     salvarNoBackend(gCasa, gFora);
   };
 
+  const rotuloInterno = getRotuloInterno();
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, delay: Math.min((idx || 0) * 0.04, 0.3) }}
-      className={`w-72 bg-slate-800/90 border rounded-md p-3 flex flex-col gap-2 shadow-md transition-colors ${
-        bloqueado ? 'border-slate-700/50 bg-slate-900/40 opacity-75' : 'border-slate-700 hover:border-slate-500'
+      className={`${
+        isCompacto ? 'w-60 sm:w-64 p-2 gap-1 text-xs' : 'w-72 p-3 gap-2'
+      } bg-slate-800/90 border rounded-md flex flex-col shadow-md transition-colors ${
+        isFinal
+          ? 'border-amber-500 shadow-amber-500/10'
+          : bloqueado
+          ? 'border-slate-700/50 bg-slate-900/40 opacity-75'
+          : 'border-slate-700 hover:border-slate-500'
       }`}
     >
+      {/* Rótulo Interno Acima do Mandante (SEMI-FINAL #1, OITAVAS #2...) */}
+      {rotuloInterno && (
+        <div className="flex items-center justify-center -mt-0.5 pb-1 border-b border-slate-700/40">
+          <span className="text-[10px] font-black tracking-widest uppercase text-emerald-400 flex items-center gap-1">
+            <span>{rotuloInterno.texto}</span>
+            <span className="text-emerald-500/70 font-bold">{rotuloInterno.numero}</span>
+          </span>
+        </div>
+      )}
+
       {/* Time da Casa */}
       <div
         className={`flex items-center justify-between gap-2 border-b border-slate-700/60 pb-2 px-1 rounded-sm transition-colors ${getPodioStyles(
@@ -300,10 +334,16 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
                 ? (escudoOff || escudoGen) 
                 : escudoGen;
             }}
-            className="w-7 h-7 object-contain shrink-0"
+            className={`${isCompacto ? 'w-5 h-5' : 'w-7 h-7'} object-contain shrink-0`}
           />
           <div className="truncate">
-            <p className={`text-sm font-bold truncate ${nomeCasa === 'Aguardando' ? 'text-slate-500 italic' : 'text-white'}`}>
+            <p
+              className={`${
+                isCompacto ? 'text-xs sm:text-sm' : 'text-sm'
+              } font-bold truncate ${
+                nomeCasa === 'Aguardando' ? 'text-slate-500 italic' : 'text-white'
+              }`}
+            >
               {nomeExibicaoCasa}
             </p>
             {partCasa && <p className="text-[10px] text-emerald-400 font-semibold truncate">{partCasa}</p>}
@@ -317,7 +357,9 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           value={golsCasa}
           onChange={(e) => handleNumeroChange(setGolsCasa, e.target.value)}
           placeholder="-"
-          className="w-9 text-center bg-slate-900 border border-slate-700 rounded-sm py-0.5 text-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30"
+          className={`${
+            isCompacto ? 'w-8 text-xs py-0' : 'w-9 text-sm py-0.5'
+          } text-center bg-slate-900 border border-slate-700 rounded-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30`}
         />
       </div>
 
@@ -336,10 +378,16 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
                 ? (escudoOff || escudoGen) 
                 : escudoGen;
             }}
-            className="w-7 h-7 object-contain shrink-0"
+            className={`${isCompacto ? 'w-5 h-5' : 'w-7 h-7'} object-contain shrink-0`}
           />
           <div className="truncate">
-            <p className={`text-sm font-bold truncate ${nomeFora === 'Aguardando' ? 'text-slate-500 italic' : 'text-white'}`}>
+            <p
+              className={`${
+                isCompacto ? 'text-xs sm:text-sm' : 'text-sm'
+              } font-bold truncate ${
+                nomeFora === 'Aguardando' ? 'text-slate-500 italic' : 'text-white'
+              }`}
+            >
               {nomeExibicaoFora}
             </p>
             {partFora && <p className="text-[10px] text-emerald-400 font-semibold truncate">{partFora}</p>}
@@ -353,7 +401,9 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           value={golsVisitante}
           onChange={(e) => handleNumeroChange(setGolsVisitante, e.target.value)}
           placeholder="-"
-          className="w-9 text-center bg-slate-900 border border-slate-700 rounded-sm py-0.5 text-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30"
+          className={`${
+            isCompacto ? 'w-8 text-xs py-0' : 'w-9 text-sm py-0.5'
+          } text-center bg-slate-900 border border-slate-700 rounded-sm font-black text-white focus:outline-none focus:border-emerald-500 disabled:opacity-30`}
         />
       </div>
 
@@ -448,6 +498,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
 
 export default function Chaveamento({ torneio, dadosSorteados }) {
   const [rodadaSelecionada, setRodadaSelecionada] = useState(1);
+  const [secaoMataMata, setSecaoMataMata] = useState('arvore_principal');
   const [dadosTorneio, setDadosTorneio] = useState(dadosSorteados);
   const [prevSorteados, setPrevSorteados] = useState(dadosSorteados);
   const [statusTorneio, setStatusTorneio] = useState(torneio?.status || 'ativo');
@@ -669,14 +720,33 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     setModalOpen(true);
   };
 
+  // Renderiza a Árvore Eliminatória:
+  // - Aba separada para Play-In, Playoffs (antigo 16avos) e Oitavas (tanto em PC quanto em Mobile)
+  // - Árvore simétrica (Quartas -> Semis -> Decisões) a partir de 8 participantes
   const renderArvoreEliminatoria = (arvoreDados, isBloqueadoPorFase = false) => {
     const arvoreProcessada = {};
     
     Object.keys(arvoreDados || {}).forEach((fase) => {
-      const jogosComIndexOriginal = (arvoreDados[fase] || []).map((j, idxOriginal) => ({
-        ...j,
-        _idxOriginal: idxOriginal,
-      }));
+      const jogosComIndexOriginal = (arvoreDados[fase] || [])
+        .slice()
+        .sort((a, b) => {
+          if (a.index_partida !== undefined && b.index_partida !== undefined) {
+            return Number(a.index_partida) - Number(b.index_partida);
+          }
+          if (a.id !== undefined && b.id !== undefined) {
+            const numA = Number(a.id);
+            const numB = Number(b.id);
+            if (!isNaN(numA) && !isNaN(numB)) {
+              return numA - numB;
+            }
+            return String(a.id).localeCompare(String(b.id));
+          }
+          return 0;
+        })
+        .map((j, idxOriginal) => ({
+          ...j,
+          _idxOriginal: idxOriginal,
+        }));
 
       if (
         fase === 'Final' ||
@@ -711,76 +781,214 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
       );
     }
 
+    const temPlayIn = fases.includes('Play-In');
+    const temPlayoffs = fases.includes('16avos de Final') || fases.includes('16avos') || fases.includes('Playoffs');
+    const temOitavas = fases.includes('Oitavas de Final') || fases.includes('Oitavas');
+
+    const fasesAbasExclusivas = fases.filter((f) =>
+      ['Play-In', '16avos de Final', '16avos', 'Playoffs', 'Oitavas de Final', 'Oitavas'].includes(f)
+    );
+
+    const fasesArvorePrincipal = fases.filter(
+      (f) => !fasesAbasExclusivas.includes(f)
+    );
+
+    const abaAtual =
+      secaoMataMata === 'arvore_principal' && fasesArvorePrincipal.length > 0
+        ? 'arvore_principal'
+        : fasesAbasExclusivas.includes(secaoMataMata)
+        ? secaoMataMata
+        : fasesArvorePrincipal.length > 0
+        ? 'arvore_principal'
+        : fases[0];
+
+    const temAbas = fasesAbasExclusivas.length > 0;
+
     return (
-      <div className="overflow-x-auto pb-8 pt-2 -mx-4 px-4 sm:mx-0 sm:px-0">
-        <div className="flex items-stretch justify-start md:justify-center gap-6 sm:gap-8 min-w-max">
-          {fases.map((nomeFase) => (
-            <div key={nomeFase} className="flex flex-col justify-around gap-6 relative">
-              <div className="text-center pb-2 border-b border-slate-700/80 mb-2">
-                <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
-                  {nomeFase === 'Decisões' ? 'Decisões' : nomeFase}
-                </span>
-              </div>
+      <div className="space-y-6">
+        {/* ABAS SUPERIORES (Playoffs | Oitavas | Fase Final) */}
+        {temAbas && (
+          <div className="flex justify-center border-b border-slate-700/80 pb-3">
+            <div className="flex flex-wrap items-center justify-center gap-2 bg-slate-900/90 p-1.5 rounded-md border border-slate-700">
+              {temPlayIn && (
+                <button
+                  type="button"
+                  onClick={() => setSecaoMataMata('Play-In')}
+                  className={`px-4 py-1.5 rounded-sm text-xs font-black uppercase tracking-wider transition-all ${
+                    abaAtual === 'Play-In'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Play-In
+                </button>
+              )}
+              {temPlayoffs && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSecaoMataMata(
+                      fases.find((f) => f.includes('16avos') || f.includes('Playoffs')) || ''
+                    )
+                  }
+                  className={`px-4 py-1.5 rounded-sm text-xs font-black uppercase tracking-wider transition-all ${
+                    abaAtual.includes('16avos') || abaAtual.includes('Playoffs')
+                      ? 'bg-emerald-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Playoffs
+                </button>
+              )}
+              {temOitavas && (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setSecaoMataMata(fases.find((f) => f.includes('Oitavas')) || '')
+                  }
+                  className={`px-4 py-1.5 rounded-sm text-xs font-black uppercase tracking-wider transition-all ${
+                    abaAtual.includes('Oitavas')
+                      ? 'bg-emerald-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Oitavas
+                </button>
+              )}
+              {fasesArvorePrincipal.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setSecaoMataMata('arvore_principal')}
+                  className={`px-4 py-1.5 rounded-sm text-xs font-black uppercase tracking-wider transition-all ${
+                    abaAtual === 'arvore_principal'
+                      ? 'bg-emerald-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  Fase Final
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
-              <div
-                className={`flex flex-col flex-1 ${
-                  nomeFase === 'Decisões' ? 'justify-between py-2' : 'justify-around gap-6'
-                }`}
-              >
-                {arvoreProcessada[nomeFase].map((jogo, idx) => {
-                  const isFinal = jogo.fase === 'Final';
-                  const isTerceiro = jogo.fase === 'Terceiro Lugar';
+        {/*  RND DE ABA ISOLADA (Play-In, Playoffs ou Oitavas selecionado) */}
+        {abaAtual !== 'arvore_principal' && arvoreProcessada[abaAtual] && (
+          <motion.div
+            key={abaAtual}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-wrap items-center justify-center gap-4 py-2"
+          >
+            {arvoreProcessada[abaAtual].map((jogo, idx) => (
+              <CardPartida
+                key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
+                idx={jogo._idxOriginal ?? idx}
+                jogo={jogo}
+                formato={formato_torneio}
+                rodadaOuFase={jogo.fase || abaAtual}
+                torneioId={torneio?.id}
+                onPlacarSalvo={handleAtualizarDados}
+                isBloqueado={isFinalizado || isBloqueadoPorFase}
+                isEliminatorio={true}
+                isCompacto={false}
+              />
+            ))}
+          </motion.div>
+        )}
 
-                  return (
+        {/*  ÁRVORE PRINCIPAL (Quartas -> Semis -> Decisões) */}
+        {abaAtual === 'arvore_principal' && (
+          <div
+            className="overflow-x-auto pb-8 pt-2 -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-color:_#10b981_#0f172a] [scrollbar-width:_thin]"
+            style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 #0f172a' }}
+          >
+            <div className="flex items-stretch justify-start md:justify-center gap-6 sm:gap-10 min-w-max">
+              {fasesArvorePrincipal.map((nomeFase, idxFase) => {
+                const isDecisoes = nomeFase === 'Decisões';
+
+                return (
+                  <div
+                    key={nomeFase}
+                    className="flex flex-col justify-around relative"
+                  >
+                    <div className="text-center pb-2 border-b border-slate-700/80 mb-6">
+                      <span className="text-xs font-black uppercase tracking-widest text-emerald-400">
+                        {isDecisoes ? 'Decisões' : nomeFase}
+                      </span>
+                    </div>
+
                     <div
-                      key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
-                      className={`flex flex-col gap-1.5 items-center ${
-                        isFinal
-                          ? 'my-auto z-10'
-                          : isTerceiro
-                          ? 'mb-2 mt-0 opacity-75 hover:opacity-100 scale-90 transition-all'
-                          : ''
+                      className={`flex flex-col flex-1 my-auto ${
+                        isDecisoes
+                          ? 'justify-center gap-4'
+                          : idxFase === 0
+                          ? 'justify-around gap-6'
+                          : idxFase === 1
+                          ? 'justify-center gap-16'
+                          : 'justify-around gap-24'
                       }`}
                     >
-                      {(isFinal || isTerceiro) && (
-                        <span
-                          className={`flex flex-row items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-sm border ${
-                            isFinal
-                              ? 'bg-amber-500/10 border-amber-500/40 text-amber-300 shadow-sm'
-                              : 'bg-slate-800/80 border-slate-700 text-slate-400 text-[10px]'
-                          }`}
-                        >
-                          {isFinal ? (
-                            <>
-                              <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-                              <span>FINAL</span>
-                            </>
-                          ) : (
-                            <>
-                              <CircleStar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                              <span>TERCEIRO LUGAR</span>
-                            </>
-                          )}
-                        </span>
-                      )}
+                      {arvoreProcessada[nomeFase].map((jogo, idx) => {
+                        const isFinal = jogo.fase === 'Final';
+                        const isTerceiro = jogo.fase === 'Terceiro Lugar';
 
-                      <CardPartida
-                        idx={jogo._idxOriginal ?? idx}
-                        jogo={jogo}
-                        formato={formato_torneio}
-                        rodadaOuFase={jogo.fase || nomeFase}
-                        torneioId={torneio?.id}
-                        onPlacarSalvo={handleAtualizarDados}
-                        isBloqueado={isFinalizado || isBloqueadoPorFase}
-                        isEliminatorio={true}
-                      />
+                        return (
+                          <div
+                            key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
+                            className={`flex flex-col gap-1.5 items-center ${
+                              isFinal
+                                ? 'z-10'
+                                : isTerceiro
+                                ? 'mt-1 opacity-80 hover:opacity-100 scale-95 transition-all'
+                                : ''
+                            }`}
+                          >
+                            {(isFinal || isTerceiro) && (
+                              <span
+                                className={`flex flex-row items-center justify-center gap-1.5 whitespace-nowrap text-[11px] font-black uppercase tracking-widest px-3 py-1 rounded-sm border ${
+                                  isFinal
+                                    ? 'bg-amber-500/20 border-amber-500/60 text-amber-300 shadow-sm'
+                                    : 'bg-slate-800/80 border-slate-700 text-slate-400 text-[10px]'
+                                }`}
+                              >
+                                {isFinal ? (
+                                  <>
+                                    <Trophy className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                    <span>FINAL</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <CircleStar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                    <span>TERCEIRO LUGAR</span>
+                                  </>
+                                )}
+                              </span>
+                            )}
+
+                            <CardPartida
+                              idx={jogo._idxOriginal ?? idx}
+                              jogo={jogo}
+                              formato={formato_torneio}
+                              rodadaOuFase={jogo.fase || nomeFase}
+                              torneioId={torneio?.id}
+                              onPlacarSalvo={handleAtualizarDados}
+                              isBloqueado={isFinalizado || isBloqueadoPorFase}
+                              isEliminatorio={true}
+                              isCompacto={true}
+                            />
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        )}
       </div>
     );
   };
