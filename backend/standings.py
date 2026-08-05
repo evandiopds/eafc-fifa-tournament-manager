@@ -7,24 +7,20 @@ import database
 # Cria o comparador com a hierarquia oficial: Pontos > Confronto Direto > Saldo de Gols > Gols Pró
 def criar_comparador(confrontos: dict):
     def comparar_times(a, b):
-        # 1. Pontos gerais
         if a["pontos"] != b["pontos"]:
             return b["pontos"] - a["pontos"]
 
         id_a = a["participante_id"]
         id_b = b["participante_id"]
 
-        # 2. Confronto Direto (compara o total de pontos somados no duelo direto entre A e B)
         pts_a_contra_b = confrontos[id_a][id_b]
         pts_b_contra_a = confrontos[id_b][id_a]
         if pts_a_contra_b != pts_b_contra_a:
             return pts_b_contra_a - pts_a_contra_b
 
-        # 3. Saldo de Gols (SG)
         if a["saldo_gols"] != b["saldo_gols"]:
             return b["saldo_gols"] - a["saldo_gols"]
 
-        # 4. Gols Pró (GP)
         return b["gols_pro"] - a["gols_pro"]
 
     return comparar_times
@@ -37,7 +33,6 @@ def _atribuir_motivos_desempate(tabela_ordenada: list, confrontos: dict, formato
         time = tabela_ordenada[i]
         motivo = None
 
-        # Compara com vizinhos na tabela para identificar se houve empate em pontos
         vizinhos = []
         if i > 0 and tabela_ordenada[i - 1]["pontos"] == time["pontos"] and time["pontos"] > 0:
             vizinhos.append(tabela_ordenada[i - 1])
@@ -45,7 +40,6 @@ def _atribuir_motivos_desempate(tabela_ordenada: list, confrontos: dict, formato
             vizinhos.append(tabela_ordenada[i + 1])
 
         if vizinhos:
-            # Identifica qual critério separou este time do seu rival direto
             rival = vizinhos[0]
             id_time = time["participante_id"]
             id_rival = rival["participante_id"]
@@ -100,7 +94,6 @@ def _inicializar_stats(p: database.Participante) -> dict:
 
 # Processa os placares finalizados e calcula pontos gerais, saldo e pontos de confronto direto
 def _processar_partidas(partidas: list, stats: dict) -> dict:
-    # confrontos[id_casa][id_fora] = pontos conquistados pelo time casa contra o fora
     confrontos = defaultdict(lambda: defaultdict(int))
 
     for pt in partidas:
@@ -193,20 +186,25 @@ def calcular_tabela_classificacao(db: Session, torneio_id: str):
     return ordenar_classificacao(list(stats.values()), historico, "pontos_corridos")
 
 
-# Seleciona os classificados da Fase de Grupos (Top 2 + Melhores 3ºs) e preenche a chave do Mata-Mata
+# Seleciona os classificados da Copa aplicando Cruzamento Olímpico (1º de um grupo vs 2º de outro)
 def avancar_classificados_copa(db: Session, torneio_id: str) -> bool:
     tabelas_grupos = calcular_tabela_classificacao(db, torneio_id)
     if not isinstance(tabelas_grupos, dict) or not tabelas_grupos:
         return False
 
-    classificados_diretos = []
+    grupos_ordenados = sorted(tabelas_grupos.keys())
+    primeiros = []
+    segundos = []
     terceiros_colocados = []
 
-    for _, tabela in tabelas_grupos.items():
+    for nome_grupo in grupos_ordenados:
+        tabela = tabelas_grupos[nome_grupo]
         for item in tabela:
             pos = item.get("posicao")
-            if pos in [1, 2]:
-                classificados_diretos.append(item["participante_id"])
+            if pos == 1:
+                primeiros.append(item["participante_id"])
+            elif pos == 2:
+                segundos.append(item["participante_id"])
             elif pos == 3:
                 jogos = item.get("jogos") or 1
                 aproveitamento = (item.get("pontos", 0) / (jogos * 3)) * 100
@@ -218,12 +216,20 @@ def avancar_classificados_copa(db: Session, torneio_id: str) -> bool:
                     "gols_pro": item.get("gols_pro", 0)
                 })
 
-    total_classificados_diretos = len(classificados_diretos)
+    # Cruzamento olímpico entre 1ºs e 2ºs
+    num_grupos = len(primeiros)
+    pares_cruzados = []
+    for i in range(num_grupos):
+        idx_oposto = (i + 1) % num_grupos if num_grupos % 2 == 0 else (num_grupos - 1 - i)
+        if i < len(primeiros) and idx_oposto < len(segundos):
+            pares_cruzados.extend([primeiros[i], segundos[idx_oposto]])
+
+    total_diretos = len(pares_cruzados)
     base = 4
-    while base < total_classificados_diretos and base < 32:
+    while base < total_diretos and base < 32:
         base *= 2
 
-    vagas_faltando = max(0, base - total_classificados_diretos)
+    vagas_faltando = max(0, base - total_diretos)
 
     terceiros_ordenados = sorted(
         terceiros_colocados,
@@ -231,7 +237,7 @@ def avancar_classificados_copa(db: Session, torneio_id: str) -> bool:
         reverse=True
     )
 
-    selecionados = classificados_diretos + [t["id"] for t in terceiros_ordenados[:vagas_faltando]]
+    selecionados = pares_cruzados + [t["id"] for t in terceiros_ordenados[:vagas_faltando]]
 
     partidas_mata_mata = db.query(database.Partida).filter(
         database.Partida.torneio_id == torneio_id,

@@ -4,11 +4,17 @@ from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 from typing import List, Optional
 from collections import defaultdict
+from database import Base, engine
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
+
+# Imports de Segurança (Rate Limit)
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 import database
 from matchmaking import sortear_duplas, sortear_times, gerar_chaveamento_aleatorio
@@ -20,29 +26,49 @@ from standings import (
 )
 
 
-# Executa varredura em segundo plano para excluir torneios sem acesso há mais de 30 dias
+# Configura o limitador de requisições por IP
+limiter = Limiter(key_func=get_remote_address)
+
+
+# Executa varredura em segundo plano: 7 dias para finalizados/inativos e 14 dias para o geral
 async def rotina_limpeza_banco():
     while True:
         db = database.SessionLocal()
         try:
-            data_limite = datetime.utcnow() - timedelta(days=30)
-            torneios_vencidos = db.query(database.Torneio).filter(
-                database.Torneio.ultimo_acesso < data_limite
+            agora = datetime.utcnow()
+            limite_7d = agora - timedelta(days=7)
+            limite_14d = agora - timedelta(days=14)
+
+            # Torneios finalizados ou marcados como inativos há mais de 7 dias
+            torneios_7d = db.query(database.Torneio).filter(
+                (database.Torneio.status.in_(["finalizado", "inativo"])) &
+                (database.Torneio.ultimo_acesso < limite_7d)
             ).all()
-            
+
+            # Todos os torneios sem acesso há mais de 14 dias
+            torneios_14d = db.query(database.Torneio).filter(
+                database.Torneio.ultimo_acesso < limite_14d
+            ).all()
+
+            # Merge sem duplicidades
+            torneios_vencidos = list(set(torneios_7d + torneios_14d))
+
             for torneio in torneios_vencidos:
                 db.delete(torneio)
+
             if torneios_vencidos:
                 db.commit()
+                print(f"Limpeza automática: {len(torneios_vencidos)} torneios expirados removidos.")
+
         except Exception as e:
             print(f"Erro na limpeza do banco: {e}")
         finally:
             db.close()
-            
-        await asyncio.sleep(864000)
+
+        # Roda a verificação a cada 24 horas (86400 segundos)
+        await asyncio.sleep(86400)
 
 
-# Gerencia o ciclo de vida da aplicação FastAPI acionando e encerrando a limpeza automática
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     task = asyncio.create_task(rotina_limpeza_banco())
@@ -52,16 +78,21 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="EAFC Tournament Manager API", lifespan=lifespan)
 
+# Registra o Rate Limiter no FastAPI
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# Configuração de CORS ajustada para permitir conexões locais na Vitrine e em produção
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:3000"],
+    allow_origin_regex="https?://.*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# Abre e gerencia a sessão de conexão com o banco de dados por requisição
 def get_db():
     db = database.SessionLocal()
     try:
@@ -70,7 +101,16 @@ def get_db():
         db.close()
 
 
-# Modelos Pydantic para validação dos dados recebidos nas requisições HTTP
+@app.get("/")
+def health_check():
+    return {
+        "status": "online",
+        "servico": "EAFC Tournament Manager API",
+        "documentacao": "/docs"
+    }
+
+
+# Modelos Pydantic
 class Jogador(BaseModel):
     nome: str
     nivel: str
@@ -113,7 +153,6 @@ class PlacarRequest(BaseModel):
     penaltis_visitante: Optional[int] = None
 
 
-# Extrai de forma segura o nome da equipe a partir de strings ou objetos
 def obter_nome_time(item):
     if not item:
         return None
@@ -124,7 +163,6 @@ def obter_nome_time(item):
     return None
 
 
-# Consulta o banco e monta o JSON estruturado do chaveamento, tabelas e confrontos
 def montar_dados_torneio(db: Session, torneio: database.Torneio):
     participantes_db = db.query(database.Participante).filter(
         database.Participante.torneio_id == torneio.id
@@ -176,7 +214,6 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
         "confrontos": partidas_formatadas,
     }
 
-    # Reconstrói a árvore de Mata-Mata preservando listas de Final e Terceiro Lugar
     if torneio.formato == "mata_mata":
         arvore = defaultdict(list)
         for j in partidas_formatadas:
@@ -199,7 +236,7 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
                 grupos[fase_nome].append(j)
             else:
                 arvore[fase_nome].append(j)
-                
+
         chaveamento_reconstruido["grupos"] = dict(grupos)
         chaveamento_reconstruido["arvore"] = dict(arvore)
         chaveamento_reconstruido["classificacao"] = calcular_tabela_classificacao(db, torneio.id)
@@ -212,10 +249,10 @@ def montar_dados_torneio(db: Session, torneio: database.Torneio):
     }
 
 
-# Permite corrigir o formato da competição exclusivamente antes da geração de partidas
 @app.put("/api/torneios/{torneio_id}/formato")
+@limiter.limit("20/minute")
 def atualizar_formato_torneio(
-    torneio_id: str, payload: FormatoUpdate, db: Session = Depends(get_db)
+    request: Request, torneio_id: str, payload: FormatoUpdate, db: Session = Depends(get_db)
 ):
     torneio = db.query(database.Torneio).filter(database.Torneio.id == torneio_id).first()
     if not torneio:
@@ -231,6 +268,7 @@ def atualizar_formato_torneio(
         )
 
     torneio.formato = payload.formato
+    torneio.ultimo_acesso = datetime.utcnow()
     db.commit()
     return {
         "status": "sucesso",
@@ -239,16 +277,15 @@ def atualizar_formato_torneio(
     }
 
 
-# Encerra fases (ex: Grupos para Mata-Mata) ou o torneio completo bloqueando novas edições
 @app.post("/api/torneios/{torneio_id}/finalizar")
-def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
+@limiter.limit("15/minute")
+def finalizar_torneio(request: Request, torneio_id: str, db: Session = Depends(get_db)):
     torneio = db.query(database.Torneio).filter(database.Torneio.id == torneio_id).first()
     if not torneio:
         raise HTTPException(status_code=404, detail="Torneio não encontrado.")
 
     status_atual = getattr(torneio, "status", "ativo")
 
-    # Transição no Modo Copa: da Fase de Grupos para o Mata-Mata
     if torneio.formato == "copa" and status_atual in ["ativo", "fase_grupos"]:
         pendentes = db.query(database.Partida).filter(
             database.Partida.torneio_id == torneio_id,
@@ -267,6 +304,7 @@ def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=500, detail="Erro ao processar classificados da Fase de Grupos.")
 
         torneio.status = "mata_mata"
+        torneio.ultimo_acesso = datetime.utcnow()
         db.commit()
 
         dados_atualizados = montar_dados_torneio(db, torneio)
@@ -278,7 +316,6 @@ def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
             "dados_sorteados": dados_atualizados,
         }
 
-    # Finalização geral para Mata-Mata, Pontos Corridos ou encerramento final da Copa
     pendentes_geral = db.query(database.Partida).filter(
         database.Partida.torneio_id == torneio_id,
         database.Partida.status == "pendente"
@@ -291,6 +328,7 @@ def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
         )
 
     torneio.status = "finalizado"
+    torneio.ultimo_acesso = datetime.utcnow()
     db.commit()
 
     dados_atualizados = montar_dados_torneio(db, torneio)
@@ -303,17 +341,17 @@ def finalizar_torneio(torneio_id: str, db: Session = Depends(get_db)):
     }
 
 
-# Processa o sorteio, gera chaves e persiste participantes e partidas no banco
 @app.post("/api/sorteio/gerar")
-def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db)):
+@limiter.limit("15/minute")
+def realizar_sorteio_geral(request: Request, payload: SorteioRequest, db: Session = Depends(get_db)):
     lista_jogadores = [{"nome": j.nome, "nivel": j.nivel} for j in payload.jogadores]
-    
+
     validacao = validar_quantidade_times(
         len(lista_jogadores), len(payload.times), formato=payload.modo, formato_torneio=payload.formato_torneio
     )
     if not validacao["valido"]:
         raise HTTPException(status_code=400, detail=validacao["mensagem"])
-        
+
     if payload.manual:
         participantes_com_times = [
             {"participantes": j["nome"], "time": t}
@@ -324,7 +362,7 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
             participantes = [j["nome"] for j in lista_jogadores]
         else:
             participantes = sortear_duplas(lista_jogadores, balanceado=payload.balanceado)
-            
+
         participantes_com_times = sortear_times(participantes, payload.times)
 
     chaveamento = gerar_chaveamento_aleatorio(participantes_com_times, payload.formato_torneio)
@@ -333,6 +371,7 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
         torneio = db.query(database.Torneio).filter(database.Torneio.id == payload.torneio_id).first()
         if torneio:
             torneio.status = "fase_grupos" if payload.formato_torneio == "copa" else "ativo"
+            torneio.ultimo_acesso = datetime.utcnow()
 
         db.query(database.Partida).filter(database.Partida.torneio_id == payload.torneio_id).delete()
         db.query(database.Participante).filter(database.Participante.torneio_id == payload.torneio_id).delete()
@@ -341,11 +380,11 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
         mapa_participantes = {}
         for item in participantes_com_times:
             nome_jogador = (
-                item["participantes"] 
-                if isinstance(item["participantes"], str) 
+                item["participantes"]
+                if isinstance(item["participantes"], str)
                 else " & ".join([p["nome"] for p in item["participantes"]])
             )
-            
+
             novo_part = database.Participante(
                 torneio_id=payload.torneio_id,
                 nome_clube=item["time"],
@@ -355,13 +394,13 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
             db.add(novo_part)
             db.commit()
             db.refresh(novo_part)
-            
+
             mapa_participantes[item["time"]] = novo_part.id
 
         confrontos = (
-            chaveamento.get("partidas_iniciais") or 
-            chaveamento.get("confrontos") or 
-            chaveamento.get("tabela") or 
+            chaveamento.get("partidas_iniciais") or
+            chaveamento.get("confrontos") or
+            chaveamento.get("tabela") or
             []
         )
         fase_nome = chaveamento.get("fase", "Fase Inicial")
@@ -385,7 +424,7 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
                 status="pendente"
             )
             db.add(nova_partida)
-        
+
         db.commit()
 
     return {
@@ -399,9 +438,10 @@ def realizar_sorteio_geral(payload: SorteioRequest, db: Session = Depends(get_db
     }
 
 
-# Cria um novo registro de torneio validando regras para o nome (ID) e senha
+# Criação com limite de 10 torneios por minuto por IP para evitar spam
 @app.post("/api/torneios", status_code=201)
-def criar_torneio(torneio: TorneioCreate, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def criar_torneio(request: Request, torneio: TorneioCreate, db: Session = Depends(get_db)):
     val_id = validar_id_torneio(torneio.nome)
     if not val_id["valido"]:
         raise HTTPException(status_code=400, detail=val_id["mensagem"])
@@ -422,27 +462,27 @@ def criar_torneio(torneio: TorneioCreate, db: Session = Depends(get_db)):
         senha_hash=torneio.senha,
         status="fase_grupos" if torneio.formato == "copa" else "ativo"
     )
-    
+
     db.add(novo_torneio)
     db.commit()
     db.refresh(novo_torneio)
-    
+
     return {
-        "mensagem": "Torneio criado com sucesso!", 
+        "mensagem": "Torneio criado com sucesso!",
         "torneio_id": novo_id
     }
 
 
-# Autentica e concede acesso ao torneio utilizando o par ID Único + Senha
 @app.post("/api/torneios/acessar")
-def acessar_torneio(payload: TorneioAcesso, db: Session = Depends(get_db)):
+@limiter.limit("30/minute")
+def acessar_torneio(request: Request, payload: TorneioAcesso, db: Session = Depends(get_db)):
     torneio = db.query(database.Torneio).filter(
         (database.Torneio.id == payload.nome_ou_id) | (database.Torneio.nome == payload.nome_ou_id)
     ).first()
-    
+
     if not torneio or torneio.senha_hash != payload.senha:
         raise HTTPException(status_code=401, detail="Torneio não encontrado ou senha incorreta.")
-        
+
     torneio.ultimo_acesso = datetime.utcnow()
     db.commit()
     db.refresh(torneio)
@@ -464,9 +504,9 @@ def acessar_torneio(payload: TorneioAcesso, db: Session = Depends(get_db)):
     }
 
 
-# Registra ou edita placares de partidas efetuando avanços em árvores eliminatórias
 @app.post("/api/torneios/placar")
-def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_db)):
+@limiter.limit("40/minute")
+def registrar_placar_partida(request: Request, payload: PlacarRequest, db: Session = Depends(get_db)):
     torneio = db.query(database.Torneio).filter(database.Torneio.id == payload.torneio_id).first()
     if not torneio:
         raise HTTPException(status_code=404, detail="Torneio não encontrado.")
@@ -479,7 +519,6 @@ def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_d
             detail="Este torneio já foi finalizado e os placares não podem mais ser alterados!"
         )
 
-    # Trava: impede registro de jogos de eliminatórias da Copa durante a Fase de Grupos
     if (
         payload.formato_torneio == "copa"
         and status_atual in ["ativo", "fase_grupos"]
@@ -527,10 +566,12 @@ def registrar_placar_partida(payload: PlacarRequest, db: Session = Depends(get_d
     partida.penaltis_casa = payload.penaltis_casa
     partida.penaltis_fora = payload.penaltis_visitante
     partida.status = "finalizada"
+
+    torneio.ultimo_acesso = datetime.utcnow()
+
     db.commit()
     db.refresh(partida)
 
-    # Aciona o avanço de fase na árvore eliminatória (Mata-Mata ou fases finais da Copa)
     if payload.formato_torneio == "mata_mata" or (
         payload.formato_torneio == "copa" and "Grupo" not in payload.rodada_ou_fase
     ):
