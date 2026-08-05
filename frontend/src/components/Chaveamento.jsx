@@ -129,16 +129,23 @@ function ModalConfirmacao({ isOpen, onClose, onConfirm, titulo, mensagem, textoB
   );
 }
 
-// Card individual de partida com edição de placar, W.O. e pênaltis
+// Card individual de partida com edição de placar, W.O. e pênaltis (Sem useEffect e sem cascading renders)
 function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalvo, isBloqueado, isEliminatorio = false, isCompacto = false }) {
-  const [golsCasa, setGolsCasa] = useState(jogo.gols_casa ?? '');
-  const [golsVisitante, setGolsVisitante] = useState(jogo.gols_visitante ?? '');
-  const [penCasa, setPenCasa] = useState(jogo.penaltis_casa ?? '');
-  const [penVisitante, setPenVisitante] = useState(jogo.penaltis_visitante ?? '');
-  
   const [emModoEdicao, setEmModoEdicao] = useState(false);
   const [statusMsg, setStatusMsg] = useState(null);
   const [carregando, setCarregando] = useState(false);
+
+  // Estados locais usados APENAS durante o modo de edição
+  const [golsCasa, setGolsCasa] = useState('');
+  const [golsVisitante, setGolsVisitante] = useState('');
+  const [penCasa, setPenCasa] = useState('');
+  const [penVisitante, setPenVisitante] = useState('');
+
+  // Valores reativos exibidos na interface (lê da prop quando visualizando, ou do estado local quando editando)
+  const gCasaAtual = emModoEdicao ? golsCasa : (jogo.gols_casa ?? '');
+  const gForaAtual = emModoEdicao ? golsVisitante : (jogo.gols_visitante ?? '');
+  const pCasaAtual = emModoEdicao ? penCasa : (jogo.penaltis_casa ?? '');
+  const pForaAtual = emModoEdicao ? penVisitante : (jogo.penaltis_visitante ?? '');
 
   const { clube: nomeCasa, jogador: partCasa } = getDadosParticipante(jogo.casa || jogo.time);
   const { clube: nomeFora, jogador: partFora } = getDadosParticipante(jogo.fora || jogo.visitante);
@@ -159,22 +166,22 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   const empatadoNoMataMata =
     !isAguardando &&
     ehMataMata &&
-    golsCasa !== '' &&
-    golsVisitante !== '' &&
-    Number(golsCasa) === Number(golsVisitante);
+    gCasaAtual !== '' &&
+    gForaAtual !== '' &&
+    Number(gCasaAtual) === Number(gForaAtual);
 
   const temPenaltis =
     ehMataMata &&
     !emModoEdicao &&
-    penCasa !== '' &&
-    penCasa != null &&
-    penVisitante !== '' &&
-    penVisitante != null;
+    jogo.penaltis_casa !== '' &&
+    jogo.penaltis_casa != null &&
+    jogo.penaltis_visitante !== '' &&
+    jogo.penaltis_visitante != null;
 
   const isFinal = jogo.fase === 'Final';
   const isTerceiro = jogo.fase === 'Terceiro Lugar';
 
-  // Rótulo interno com a nomenclatura e # com opacidade menor ("SEMI-FINAL #1", "OITAVAS #4")
+  // Rótulo interno com nomenclatura atualizada e # discreto ("SEMI-FINAL #1", "OITAVAS #4")
   const getRotuloInterno = () => {
     if (!ehMataMata || isFinal || isTerceiro) return null;
     let faseLimpa = (jogo.fase || rodadaOuFase || '')
@@ -192,14 +199,14 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
   const getPodioStyles = (isCasa) => {
     if (!jogo.status || jogo.status !== 'finalizada') return '';
 
-    const gCasa = Number(golsCasa);
-    const gFora = Number(golsVisitante);
+    const gCasa = Number(gCasaAtual);
+    const gFora = Number(gForaAtual);
     let vitoriaCasa = gCasa > gFora;
     let vitoriaFora = gFora > gCasa;
 
     if (gCasa === gFora && temPenaltis) {
-      vitoriaCasa = Number(penCasa) > Number(penVisitante);
-      vitoriaFora = Number(penVisitante) > Number(penCasa);
+      vitoriaCasa = Number(pCasaAtual) > Number(pForaAtual);
+      vitoriaFora = Number(pForaAtual) > Number(pCasaAtual);
     }
 
     if (isFinal) {
@@ -222,12 +229,15 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
     setCarregando(true);
     setStatusMsg(null);
 
+    // Garante que o index_partida enviado é sempre o índice real do banco
+    const indexParaSalvar = jogo.index_partida ?? jogo.id ?? idx;
+
     try {
       const resp = await axios.post(`${API_URL}/torneios/placar`, {
         torneio_id: torneioId,
         formato_torneio: formato,
         rodada_ou_fase: rodadaOuFase,
-        index_partida: idx,
+        index_partida: indexParaSalvar,
         gols_casa: casaGols,
         gols_visitante: foraGols,
         penaltis_casa: casaPen,
@@ -354,7 +364,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           type="text"
           inputMode="numeric"
           disabled={bloqueado || !emModoEdicao}
-          value={golsCasa}
+          value={gCasaAtual}
           onChange={(e) => handleNumeroChange(setGolsCasa, e.target.value)}
           placeholder="-"
           className={`${
@@ -398,7 +408,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
           type="text"
           inputMode="numeric"
           disabled={bloqueado || !emModoEdicao}
-          value={golsVisitante}
+          value={gForaAtual}
           onChange={(e) => handleNumeroChange(setGolsVisitante, e.target.value)}
           placeholder="-"
           className={`${
@@ -411,7 +421,7 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
       {temPenaltis && (
         <div className="flex items-center justify-center gap-1.5 py-1 bg-slate-900/80 rounded-sm border border-emerald-500/30 text-emerald-400 font-bold text-xs mt-1">
           <img src={penaltyIcon} alt="Pênaltis" className="w-3.5 h-3.5 shrink-0" />
-          <span>{penCasa} × {penVisitante}</span>
+          <span>{pCasaAtual} × {pForaAtual}</span>
         </div>
       )}
 
@@ -475,6 +485,10 @@ function CardPartida({ jogo, idx, formato, rodadaOuFase, torneioId, onPlacarSalv
                 type="button"
                 onClick={() => {
                   setStatusMsg(null);
+                  setGolsCasa(jogo.gols_casa ?? '');
+                  setGolsVisitante(jogo.gols_visitante ?? '');
+                  setPenCasa(jogo.penaltis_casa ?? '');
+                  setPenVisitante(jogo.penaltis_visitante ?? '');
                   setEmModoEdicao(true);
                 }}
                 className="flex items-center justify-center gap-1.5 w-full bg-slate-700 hover:bg-slate-600 text-slate-200 py-1.5 rounded-sm text-[11px] font-bold uppercase transition-all"
@@ -720,9 +734,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
     setModalOpen(true);
   };
 
-  // Renderiza a Árvore Eliminatória:
-  // - Aba separada para Play-In, Playoffs (antigo 16avos) e Oitavas (tanto em PC quanto em Mobile)
-  // - Árvore simétrica (Quartas -> Semis -> Decisões) a partir de 8 participantes
+  // Renderiza a Árvore Eliminatória otimizada e imutável contra race-conditions
   const renderArvoreEliminatoria = (arvoreDados, isBloqueadoPorFase = false) => {
     const arvoreProcessada = {};
     
@@ -730,18 +742,9 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
       const jogosComIndexOriginal = (arvoreDados[fase] || [])
         .slice()
         .sort((a, b) => {
-          if (a.index_partida !== undefined && b.index_partida !== undefined) {
-            return Number(a.index_partida) - Number(b.index_partida);
-          }
-          if (a.id !== undefined && b.id !== undefined) {
-            const numA = Number(a.id);
-            const numB = Number(b.id);
-            if (!isNaN(numA) && !isNaN(numB)) {
-              return numA - numB;
-            }
-            return String(a.id).localeCompare(String(b.id));
-          }
-          return 0;
+          const idxA = a.index_partida ?? a.id ?? 0;
+          const idxB = b.index_partida ?? b.id ?? 0;
+          return Number(idxA) - Number(idxB);
         })
         .map((j, idxOriginal) => ({
           ...j,
@@ -872,7 +875,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           </div>
         )}
 
-        {/*  RND DE ABA ISOLADA (Play-In, Playoffs ou Oitavas selecionado) */}
+        {/* RND DE ABA ISOLADA (Play-In, Playoffs ou Oitavas selecionado) */}
         {abaAtual !== 'arvore_principal' && arvoreProcessada[abaAtual] && (
           <motion.div
             key={abaAtual}
@@ -884,8 +887,8 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           >
             {arvoreProcessada[abaAtual].map((jogo, idx) => (
               <CardPartida
-                key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
-                idx={jogo._idxOriginal ?? idx}
+                key={`aba-${jogo.fase || abaAtual}-${jogo.id ?? jogo.index_partida ?? idx}`}
+                idx={jogo.index_partida ?? jogo.id ?? idx}
                 jogo={jogo}
                 formato={formato_torneio}
                 rodadaOuFase={jogo.fase || abaAtual}
@@ -899,7 +902,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           </motion.div>
         )}
 
-        {/*  ÁRVORE PRINCIPAL (Quartas -> Semis -> Decisões) */}
+        {/* ÁRVORE PRINCIPAL (Quartas -> Semis -> Decisões) */}
         {abaAtual === 'arvore_principal' && (
           <div
             className="overflow-x-auto pb-8 pt-2 -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-color:_#10b981_#0f172a] [scrollbar-width:_thin]"
@@ -937,7 +940,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
 
                         return (
                           <div
-                            key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`}
+                            key={`arvore-${jogo.fase || nomeFase}-${jogo.id ?? jogo.index_partida ?? idx}`}
                             className={`flex flex-col gap-1.5 items-center ${
                               isFinal
                                 ? 'z-10'
@@ -969,7 +972,7 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                             )}
 
                             <CardPartida
-                              idx={jogo._idxOriginal ?? idx}
+                              idx={jogo.index_partida ?? jogo.id ?? idx}
                               jogo={jogo}
                               formato={formato_torneio}
                               rodadaOuFase={jogo.fase || nomeFase}
@@ -1077,8 +1080,8 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
                 <div className="flex flex-wrap items-center justify-center gap-4 w-full">
                   {grupos[grupoAtivo].map((item, idx) => (
                     <CardPartida 
-                      key={`${item.id || idx}-${item.gols_casa}-${item.gols_visitante}`} 
-                      idx={idx} 
+                      key={`copa-${grupoAtivo}-${item.id ?? item.index_partida ?? idx}`} 
+                      idx={item.index_partida ?? item.id ?? idx} 
                       jogo={item} 
                       formato={formato_torneio} 
                       rodadaOuFase={grupoAtivo}
@@ -1200,8 +1203,8 @@ export default function Chaveamento({ torneio, dadosSorteados }) {
           >
             {jogosRodada.map((jogo, idx) => (
               <CardPartida 
-                key={`${jogo.id || idx}-${jogo.gols_casa}-${jogo.gols_visitante}`} 
-                idx={idx} 
+                key={`pc-${isRodadaD ? 'D' : jogo.rodada}-${jogo.id ?? jogo.index_partida ?? idx}`} 
+                idx={jogo.index_partida ?? jogo.id ?? idx} 
                 jogo={jogo} 
                 formato={formato_torneio} 
                 rodadaOuFase={isRodadaD ? 'Rodada D' : `Rodada ${jogo.rodada}`}
